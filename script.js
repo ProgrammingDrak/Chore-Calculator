@@ -174,13 +174,13 @@ function updateDropdowns() {
 
 function calculatePointValue(task) {
     const modifiers = JSON.parse(localStorage.getItem("modifiers")) || {
-        tier1: 1,
-        tier2: 1.5,
-        tier3: 2,
-        constant: 1,
-        frequent: 1.5,
-        moderate: 2,
-        rare: 2.5
+        tier1: 0,
+        tier2: 0.5,
+        tier3: 0.75,
+        constant: 0,
+        frequent: 0.25,
+        moderate: 0.5,
+        rare: 0.75
     };
     return task.time * (1 + modifiers[task.difficulty] + modifiers[task.specialty]);
 }
@@ -372,13 +372,13 @@ function toggleVisibility(id) {
 
 function loadModifiers() {
     const modifiers = JSON.parse(localStorage.getItem("modifiers")) || {
-        tier1: 1,
-        tier2: 1.5,
-        tier3: 2,
-        constant: 1,
-        frequent: 1.5,
-        moderate: 2,
-        rare: 2.5
+        tier1: 0,
+        tier2: 0.5,
+        tier3: 1,
+        constant: 0,
+        frequent: 0.25,
+        moderate: 0.5,
+        rare: 0.75
     };
 
     document.getElementById("tier1").value = modifiers.tier1;
