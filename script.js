@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     authenticate().then(loadClient).then(syncTasksFromSheets);
     updateDropdowns();
-    updatePersonTaskList('person1');
-    updatePersonTaskList('person2');
     createCustomTaskForm('task-bank');
     createCustomTaskForm('person1');
     createCustomTaskForm('person2');
@@ -84,7 +82,7 @@ function deleteTask(sheetName, taskIndex) {
 
 function loadTasksFromSheet(sheetName) {
     return gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: 'YOUR_SHEET_ID',
+        spreadsheetId: '1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU',
         range: `${sheetName}!A1:F100`
     }).then(response => {
         const tasks = response.result.values || [];
@@ -108,7 +106,7 @@ function saveTasksToSheet(sheetName, tasks) {
     ]);
 
     return gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: 'YOUR_SHEET_ID',
+        spreadsheetId: '1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU',
         range: `${sheetName}!A1`,
         valueInputOption: 'RAW',
         resource: { values: values }
