@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function initializeTasks() {
     const initialTasks = [
-        { name: "After dinner clean up", description: "", time: 20, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "After dinner clean up", description: "", time: 20, difficulty: "tier2", specialty: "constant", frequency: 7 },
         { name: "Clean the half bathroom", description: "", time: 20, difficulty: "tier3", specialty: "rare", frequency: 0.25 },
         { name: "Clean the windows", description: "", time: 30, difficulty: "tier3", specialty: "rare", frequency: 0.025 },
         { name: "Deep Clean - Four Seasons Room", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },

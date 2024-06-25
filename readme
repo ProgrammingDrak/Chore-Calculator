@@ -3,3 +3,5 @@ Need to add a "custom modifier" for smaller increments on specific tasks
 Need to build the bounty board that has notifications and ways to claim tasks
 Need to make the custom task forms reset to blank after they add tasks
 Add the ability to create your own name (create an array?)
+Need to go through the initial tasks and add in their "times per week".
+Then need to add the functionality for the initialize tasks function to include that in the task information
