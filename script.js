@@ -9,6 +9,12 @@ document.addEventListener("DOMContentLoaded", () => {
     loadModifiers();
 });
 
+function deleteAllTasks() {
+    localStorage.removeItem('tasks');
+    loadTasks();
+    updateDropdowns();
+}
+
 function openTab(event, tabName) {
     const tabContents = document.querySelectorAll(".tab-content");
     tabContents.forEach(tab => {
