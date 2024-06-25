@@ -5,3 +5,6 @@ Need to make the custom task forms reset to blank after they add tasks
 Add the ability to create your own name (create an array?)
 Need to go through the initial tasks and add in their "times per week".
 Then need to add the functionality for the initialize tasks function to include that in the task information
+Need to add a way to export months or somehow store the information somewhere at certain increments. Both for backup/safety and for posterity. Most important would be to back up the total points of each person daily somewhere.
+Make the task update in the list on the person's page (and only on the page?) if they "edit" it on their page.
+Find a way to make the data store in the github so it's remote and updating across devices. Could it be just a spreadsheet that gets updated or something? Or can the "local storage" API be pointed at a Github file in some way?
