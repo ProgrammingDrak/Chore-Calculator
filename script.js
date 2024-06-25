@@ -9,10 +9,58 @@ document.addEventListener("DOMContentLoaded", () => {
     loadModifiers();
 });
 
+function initializeTasks() {
+    const initialTasks = [
+        { name: "After dinner clean up", description: "", time: 20, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Clean the half bathroom", description: "", time: 20, difficulty: "tier3", specialty: "rare", frequency: 0.25 },
+        { name: "Clean the windows", description: "", time: 30, difficulty: "tier3", specialty: "rare", frequency: 0.025 },
+        { name: "Deep Clean - Four Seasons Room", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
+        { name: "Deep Clean - Kitchen", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
+        { name: "Deep Clean - Living Room", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
+        { name: "Deep Clean - Office", description: "", time: 10, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
+        { name: "Dust baseboards lower level", description: "", time: 30, difficulty: "tier3", specialty: "rare", frequency: 0.025 },
+        { name: "Feed Griffin", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "General Dusting lower level", description: "", time: 20, difficulty: "tier3", specialty: "frequent", frequency: 0.25 },
+        { name: "General lower level vacuum", description: "", time: 25, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Machine laundry per load", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 1 },
+        { name: "Make Breakfast", description: "", time: 15, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Make Dinner", description: "", time: 45, difficulty: "tier2", specialty: "constant", frequency: 6 },
+        { name: "Make Lunch", description: "", time: 20, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Make the bed", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Meal Planning", description: "", time: 45, difficulty: "tier1", specialty: "frequent", frequency: 1 },
+        { name: "Mise en Place", description: "", time: 25, difficulty: "tier2", specialty: "frequent", frequency: 6 },
+        { name: "Mop lower level", description: "", time: 25, difficulty: "tier2", specialty: "frequent", frequency: 1 },
+        { name: "Mow the back lawn", description: "", time: 45, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
+        { name: "Mow the front lawn", description: "", time: 60, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
+        { name: "Mow the side ones", description: "", time: 20, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
+        { name: "Put away laundry", description: "", time: 15, difficulty: "tier1", specialty: "frequent", frequency: 1 },
+        { name: "Reset the living room", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Take out the compost", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 1 },
+        { name: "Take out the trash", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 1 },
+        { name: "Trim the lawn", description: "", time: 30, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
+        { name: "Unload the dishwasher", description: "", time: 10, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Vaccum the Couch", description: "", time: 10, difficulty: "tier1", specialty: "frequent", frequency: 0.5 },
+        { name: "Wash bedding", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 0.5 },
+        { name: "Water the flowers", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Water the trees", description: "", time: 10, difficulty: "tier1", specialty: "constant", frequency: 7 },
+        { name: "Weed the garden", description: "", time: 20, difficulty: "tier2", specialty: "frequent", frequency: 2 },
+        { name: "Wet Vacuum the couch", description: "", time: 45, difficulty: "tier3", specialty: "rare", frequency: 0.125 }
+    ];
+
+    localStorage.setItem("tasks", JSON.stringify(initialTasks));
+    loadTasks();
+    updateDropdowns();
+}
+
 function deleteAllTasks() {
     localStorage.removeItem('tasks');
     loadTasks();
     updateDropdowns();
+}
+
+function resetLocalStorage() {
+    localStorage.clear();
+    location.reload();
 }
 
 function openTab(event, tabName) {
@@ -156,13 +204,13 @@ function addPersonTask(personId, taskIndex = null, taskCount = null) {
     taskCountInput.value = 1;
 }
 
-function addCustomTask(personId) {
-    const taskName = document.getElementById(`${personId}-task-name`).value;
-    const taskDescription = document.getElementById(`${personId}-task-description`).value;
-    const taskTime = parseInt(document.getElementById(`${personId}-task-time`).value);
-    const difficultyModifier = document.getElementById(`${personId}-difficulty-modifier`).value;
-    const specialtyModifier = document.getElementById(`${personId}-specialty-modifier`).value;
-    const taskFrequency = parseInt(document.getElementById(`${personId}-task-frequency`).value);
+function addCustomTask(containerId) {
+    const taskName = document.getElementById(`${containerId}-task-name`).value;
+    const taskDescription = document.getElementById(`${containerId}-task-description`).value;
+    const taskTime = parseInt(document.getElementById(`${containerId}-task-time`).value);
+    const difficultyModifier = document.getElementById(`${containerId}-difficulty-modifier`).value;
+    const specialtyModifier = document.getElementById(`${containerId}-specialty-modifier`).value;
+    const taskFrequency = parseInt(document.getElementById(`${containerId}-task-frequency`).value);
 
     const task = {
         name: taskName,
@@ -173,12 +221,17 @@ function addCustomTask(personId) {
         frequency: taskFrequency,
     };
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    tasks.push(task);
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-
-    updateDropdowns();
-    addPersonTask(personId, tasks.length - 1, 1); // Add the newly created task to the person's task list
+    if (containerId === 'task-bank') {
+        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+        tasks.push(task);
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        loadTasks();
+    } else {
+        let personTasks = JSON.parse(localStorage.getItem(`${containerId}-tasks`)) || [];
+        personTasks.push({ task, points: calculatePointValue(task), date: new Date(), taskCount: 1 });
+        localStorage.setItem(`${containerId}-tasks`, JSON.stringify(personTasks));
+        updatePersonTaskList(containerId);
+    }
 }
 
 function updatePersonTaskList(personId) {
@@ -197,8 +250,9 @@ function updatePersonTaskList(personId) {
     const taskList = document.getElementById(`${personId}-task-list`);
     taskList.innerHTML = "";
     personTasks.forEach((t, index) => {
+        const task = t.taskIndex !== null ? tasks[t.taskIndex] : t.task;
         const taskItem = document.createElement("li");
-        taskItem.textContent = `${tasks[t.taskIndex].name} - ${t.taskCount} instance(s) - ${t.points} points`;
+        taskItem.textContent = `${task.name} - ${t.taskCount} instance(s) - ${t.points} points`;
 
         const dropdown = document.createElement("div");
         dropdown.className = "dropdown";
@@ -305,7 +359,7 @@ function createCustomTaskForm(containerId) {
                 <option value="moderate">Moderate (Weekly to Monthly)</option>
                 <option value="rare">Rare (Monthly+)</option>
             </select>
-            <input type="number" id="${containerId}-task-frequency" placeholder="Times per Week" required>
+            <input type="number" id="${containerId}-task-frequency" placeholder="Times per Week (recurring tasks only)" required>
             <button type="button" onclick="addCustomTask('${containerId}')">Add Custom Task</button>
         </form>
     `;
@@ -353,4 +407,3 @@ function updateModifiers(type) {
     localStorage.setItem("modifiers", JSON.stringify(modifiers));
     alert("Modifiers updated successfully!");
 }
-

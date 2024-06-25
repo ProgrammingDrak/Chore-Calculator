@@ -8,9 +8,10 @@
 </head>
 <body>
     <div class="tabs">
+        <button class="tab-button" onclick="openTab(event, 'Bounty Board')">Bounty Board</button>
         <button class="tab-button" onclick="openTab(event, 'menu')">Menu</button>
-        <button class="tab-button" onclick="openTab(event, 'person1')">Person 1</button>
-        <button class="tab-button" onclick="openTab(event, 'person2')">Person 2</button>
+        <button class="tab-button" onclick="openTab(event, 'person1')">Drake</button>
+        <button class="tab-button" onclick="openTab(event, 'person2')">Kelsey</button>
     </div>
 
     <div id="menu" class="tab-content">
@@ -22,6 +23,8 @@
             <h3>Task Bank</h3>
             <div id="task-bank-form-container"></div>
             <button onclick="deleteAllTasks()">Delete All Tasks</button>
+            <button onclick="resetLocalStorage()">Reset Local Storage</button>
+            <button onclick="initializeTasks()">Add Initial Tasks</button>
             <ul id="task-list"></ul>
         </div>
 
