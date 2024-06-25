@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
     authenticate().then(loadClient).then(syncTasksFromSheets);
-    loadTasks();
     updateDropdowns();
     updatePersonTaskList('person1');
     updatePersonTaskList('person2');
@@ -9,90 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
     createCustomTaskForm('person2');
     loadModifiers();
 });
-
-function initializeTasks() {
-    const initialTasks = [
-        { name: "After dinner clean up", description: "", time: 20, difficulty: "tier2", specialty: "constant", frequency: 7 },
-        { name: "Clean the half bathroom", description: "", time: 20, difficulty: "tier3", specialty: "rare", frequency: 0.25 },
-        { name: "Clean the windows", description: "", time: 30, difficulty: "tier3", specialty: "rare", frequency: 0.025 },
-        { name: "Deep Clean - Four Seasons Room", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
-        { name: "Deep Clean - Kitchen", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
-        { name: "Deep Clean - Living Room", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
-        { name: "Deep Clean - Office", description: "", time: 10, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
-        { name: "Dust baseboards lower level", description: "", time: 30, difficulty: "tier3", specialty: "rare", frequency: 0.025 },
-        { name: "Feed Griffin", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "General Dusting lower level", description: "", time: 20, difficulty: "tier3", specialty: "frequent", frequency: 0.25 },
-        { name: "General lower level vacuum", description: "", time: 25, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Machine laundry per load", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 1 },
-        { name: "Make Breakfast", description: "", time: 15, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Make Dinner", description: "", time: 45, difficulty: "tier2", specialty: "constant", frequency: 6 },
-        { name: "Make Lunch", description: "", time: 20, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Make the bed", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Meal Planning", description: "", time: 45, difficulty: "tier1", specialty: "frequent", frequency: 1 },
-        { name: "Mise en Place", description: "", time: 25, difficulty: "tier2", specialty: "frequent", frequency: 6 },
-        { name: "Mop lower level", description: "", time: 25, difficulty: "tier2", specialty: "frequent", frequency: 1 },
-        { name: "Mow the back lawn", description: "", time: 45, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
-        { name: "Mow the front lawn", description: "", time: 60, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
-        { name: "Mow the side ones", description: "", time: 20, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
-        { name: "Put away laundry", description: "", time: 15, difficulty: "tier1", specialty: "frequent", frequency: 1 },
-        { name: "Reset the living room", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Take out the compost", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 1 },
-        { name: "Take out the trash", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 1 },
-        { name: "Trim the lawn", description: "", time: 30, difficulty: "tier3", specialty: "frequent", frequency: 0.3 },
-        { name: "Unload the dishwasher", description: "", time: 10, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Vaccum the Couch", description: "", time: 10, difficulty: "tier1", specialty: "frequent", frequency: 0.5 },
-        { name: "Wash bedding", description: "", time: 5, difficulty: "tier1", specialty: "frequent", frequency: 0.5 },
-        { name: "Water the flowers", description: "", time: 5, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Water the trees", description: "", time: 10, difficulty: "tier1", specialty: "constant", frequency: 7 },
-        { name: "Weed the garden", description: "", time: 20, difficulty: "tier2", specialty: "frequent", frequency: 2 },
-        { name: "Wet Vacuum the couch", description: "", time: 45, difficulty: "tier3", specialty: "rare", frequency: 0.125 }
-    ];
-
-    localStorage.setItem("tasks", JSON.stringify(initialTasks));
-    loadTasks();
-    updateDropdowns();
-}
-
-function deleteAllTasks() {
-    localStorage.removeItem('tasks');
-    loadTasks();
-    updateDropdowns();
-}
-
-function resetLocalStorage() {
-    localStorage.clear();
-    location.reload();
-}
-
-function openTab(event, tabName) {
-    const tabContents = document.querySelectorAll(".tab-content");
-    tabContents.forEach(tab => {
-        tab.style.display = "none";
-    });
-
-    const tabButtons = document.querySelectorAll(".tab-button");
-    tabButtons.forEach(button => {
-        button.className = button.className.replace(" active", "");
-    });
-
-    document.getElementById(tabName).style.display = "block";
-    event.currentTarget.className += " active";
-}
-
-function openSubTab(event, subTabName) {
-    const subTabContents = document.querySelectorAll(".sub-tab-content");
-    subTabContents.forEach(tab => {
-        tab.style.display = "none";
-    });
-
-    const subTabButtons = document.querySelectorAll(".sub-tab-button");
-    subTabButtons.forEach(button => {
-        button.className = button.className.replace(" sub-tab-active", "");
-    });
-
-    document.getElementById(subTabName).style.display = "block";
-    event.currentTarget.className += " sub-tab-active";
-}
 
 function addTask() {
     const taskName = document.getElementById("task-name").value;
@@ -111,23 +26,122 @@ function addTask() {
         frequency: taskFrequency,
     };
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    tasks.push(task);
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-
-    loadTasks();
-    updateDropdowns();
-
-    saveTasksToSheet();
+    addTaskToSheet('task-bank', task);
 }
 
-function loadTasks() {
+function addPersonTask(personId) {
+    const dropdown = document.getElementById(`${personId}-task-dropdown`);
+    const taskIndex = dropdown.value;
+    const taskCount = parseInt(document.getElementById(`${personId}-task-count`).value);
+
+    const task = {
+        taskIndex,
+        taskCount,
+        date: new Date()
+    };
+
+    addTaskToSheet(personId, task);
+}
+
+function addTaskToSheet(sheetName, task) {
+    loadTasksFromSheet(sheetName).then(tasks => {
+        tasks.push(task);
+        saveTasksToSheet(sheetName, tasks);
+    });
+}
+
+function updateTask() {
+    const taskIndex = document.getElementById("edit-task-index").value;
+    const taskName = document.getElementById("edit-task-name").value;
+    const taskDescription = document.getElementById("edit-task-description").value;
+    const taskTime = parseInt(document.getElementById("edit-task-time").value);
+    const difficultyModifier = document.getElementById("edit-difficulty-modifier").value;
+    const specialtyModifier = document.getElementById("edit-specialty-modifier").value;
+    const taskFrequency = parseInt(document.getElementById("edit-task-frequency").value);
+
+    const updatedTask = {
+        name: taskName,
+        description: taskDescription,
+        time: taskTime,
+        difficulty: difficultyModifier,
+        specialty: specialtyModifier,
+        frequency: taskFrequency,
+    };
+
+    loadTasksFromSheet('task-bank').then(tasks => {
+        tasks[taskIndex] = updatedTask;
+        saveTasksToSheet('task-bank', tasks);
+        closeModal();
+    });
+}
+
+function deleteTask(sheetName, taskIndex) {
+    loadTasksFromSheet(sheetName).then(tasks => {
+        tasks.splice(taskIndex, 1);
+        saveTasksToSheet(sheetName, tasks);
+    });
+}
+
+function loadTasksFromSheet(sheetName) {
+    return gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: 'YOUR_SHEET_ID',
+        range: `${sheetName}!A1:F100`
+    }).then(response => {
+        const tasks = response.result.values || [];
+        return tasks.map(row => ({
+            name: row[0],
+            description: row[1],
+            time: parseInt(row[2]),
+            difficulty: row[3],
+            specialty: row[4],
+            frequency: parseFloat(row[5])
+        }));
+    }, error => {
+        console.error('Error loading tasks from sheet', error);
+        return [];
+    });
+}
+
+function saveTasksToSheet(sheetName, tasks) {
+    const values = tasks.map(task => [
+        task.name, task.description, task.time, task.difficulty, task.specialty, task.frequency
+    ]);
+
+    return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: 'YOUR_SHEET_ID',
+        range: `${sheetName}!A1`,
+        valueInputOption: 'RAW',
+        resource: { values: values }
+    }).then(response => {
+        console.log('Tasks saved to sheet', response);
+    }, error => {
+        console.error('Error saving tasks to sheet', error);
+    });
+}
+
+function syncTasksFromSheets() {
+    Promise.all([
+        loadTasksFromSheet('task-bank').then(tasks => {
+            // Update task bank UI
+            updateTaskBank(tasks);
+        }),
+        loadTasksFromSheet('person1').then(tasks => {
+            // Update person 1's task list UI
+            updatePersonTaskList('person1', tasks);
+        }),
+        loadTasksFromSheet('person2').then(tasks => {
+            // Update person 2's task list UI
+            updatePersonTaskList('person2', tasks);
+        })
+    ]).then(() => {
+        console.log('Tasks synced from sheets');
+    });
+}
+
+function updateTaskBank(tasks) {
     const taskList = document.getElementById("task-list");
     taskList.innerHTML = "";
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-
-    // Sort tasks alphabetically by name
     tasks.sort((a, b) => a.name.localeCompare(b.name));
 
     tasks.forEach((task, index) => {
@@ -141,7 +155,7 @@ function loadTasks() {
             <button class="dropdown-button">...</button>
             <div class="dropdown-content">
                 <button onclick="openModal(${index})">Edit</button>
-                <button onclick="deleteTask(null, ${index})">Delete</button>
+                <button onclick="deleteTask('task-bank', ${index})">Delete</button>
             </div>
         `;
 
@@ -150,28 +164,25 @@ function loadTasks() {
     });
 }
 
-function updateDropdowns() {
-    const person1Dropdown = document.getElementById("person1-task-dropdown");
-    const person2Dropdown = document.getElementById("person2-task-dropdown");
-
-    person1Dropdown.innerHTML = '<option value="" disabled selected>Generic Tasks</option>';
-    person2Dropdown.innerHTML = '<option value="" disabled selected>Generic Tasks</option>';
-
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-
-    // Sort tasks alphabetically by name
-    tasks.sort((a, b) => a.name.localeCompare(b.name));
+function updatePersonTaskList(personId, tasks) {
+    const taskList = document.getElementById(`${personId}-task-list`);
+    taskList.innerHTML = "";
 
     tasks.forEach((task, index) => {
-        const option1 = document.createElement("option");
-        option1.value = index;
-        option1.textContent = task.name;
-        person1Dropdown.appendChild(option1);
+        const taskItem = document.createElement("li");
+        taskItem.textContent = `${task.name} - ${task.taskCount} instance(s)`;
 
-        const option2 = document.createElement("option");
-        option2.value = index;
-        option2.textContent = task.name;
-        person2Dropdown.appendChild(option2);
+        const dropdown = document.createElement("div");
+        dropdown.className = "dropdown";
+        dropdown.innerHTML = `
+            <button class="dropdown-button">...</button>
+            <div class="dropdown-content">
+                <button onclick="deleteTask('${personId}', ${index})">Delete</button>
+            </div>
+        `;
+
+        taskItem.appendChild(dropdown);
+        taskList.appendChild(taskItem);
     });
 }
 
@@ -188,184 +199,22 @@ function calculatePointValue(task) {
     return task.time * (1 + modifiers[task.difficulty] + modifiers[task.specialty]);
 }
 
-function addPersonTask(personId, taskIndex = null, taskCount = null) {
-    const dropdown = document.getElementById(`${personId}-task-dropdown`);
-    const taskCountInput = document.getElementById(`${personId}-task-count`);
-    taskCount = taskCount || parseInt(taskCountInput.value);
-    taskIndex = taskIndex !== null ? taskIndex : dropdown.value;
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    const task = tasks[taskIndex];
-    const points = calculatePointValue(task) * taskCount;
-
-    let personTasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
-    personTasks.push({ taskIndex, taskCount, points, date: new Date() });
-    localStorage.setItem(`${personId}-tasks`, JSON.stringify(personTasks));
-
-    updatePersonTaskList(personId);
-
-    // Reset the task count input to 1
-    taskCountInput.value = 1;
-}
-
-function addCustomTask(containerId) {
-    const taskName = document.getElementById(`${containerId}-task-name`).value;
-    const taskDescription = document.getElementById(`${containerId}-task-description`).value;
-    const taskTime = parseInt(document.getElementById(`${containerId}-task-time`).value);
-    const difficultyModifier = document.getElementById(`${containerId}-difficulty-modifier`).value;
-    const specialtyModifier = document.getElementById(`${containerId}-specialty-modifier`).value;
-    const taskFrequency = parseInt(document.getElementById(`${containerId}-task-frequency`).value);
-
-    const task = {
-        name: taskName,
-        description: taskDescription,
-        time: taskTime,
-        difficulty: difficultyModifier,
-        specialty: specialtyModifier,
-        frequency: taskFrequency,
-    };
-
-    if (containerId === 'task-bank') {
-        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        tasks.push(task);
-        localStorage.setItem("tasks", JSON.stringify(tasks));
-        loadTasks();
-    } else {
-        let personTasks = JSON.parse(localStorage.getItem(`${containerId}-tasks`)) || [];
-        personTasks.push({ task, points: calculatePointValue(task), date: new Date(), taskCount: 1 });
-        localStorage.setItem(`${containerId}-tasks`, JSON.stringify(personTasks));
-        updatePersonTaskList(containerId);
-    }
-}
-
-function updatePersonTaskList(personId) {
-    const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    let personTasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
-
-    const totalPointsElement = document.getElementById(`${personId}-total-points`);
-    const todayPointsElement = document.getElementById(`${personId}-today-points`);
-
-    const totalPoints = personTasks.reduce((sum, t) => sum + t.points, 0);
-    const todayPoints = personTasks.filter(t => isToday(t.date)).reduce((sum, t) => sum + t.points, 0);
-
-    totalPointsElement.textContent = totalPoints;
-    todayPointsElement.textContent = todayPoints;
-
-    const taskList = document.getElementById(`${personId}-task-list`);
-    taskList.innerHTML = "";
-    personTasks.forEach((t, index) => {
-        const task = t.taskIndex !== null ? tasks[t.taskIndex] : t.task;
-        const taskItem = document.createElement("li");
-        taskItem.textContent = `${task.name} - ${t.taskCount} instance(s) - ${t.points} points`;
-
-        const dropdown = document.createElement("div");
-        dropdown.className = "dropdown";
-        dropdown.innerHTML = `
-            <button class="dropdown-button">...</button>
-            <div class="dropdown-content">
-                <button onclick="openModal(${t.taskIndex})">Edit</button>
-                <button onclick="deleteTask('${personId}', ${index})">Delete</button>
-            </div>
-        `;
-
-        taskItem.appendChild(dropdown);
-        taskList.appendChild(taskItem);
-    });
-}
-
-function isToday(date) {
-    const today = new Date();
-    date = new Date(date);
-    return date.getDate() === today.getDate() &&
-           date.getMonth() === today.getMonth() &&
-           date.getFullYear() === today.getFullYear();
-}
-
 function openModal(index) {
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    const task = tasks[index];
-
-    document.getElementById("edit-task-index").value = index;
-    document.getElementById("edit-task-name").value = task.name;
-    document.getElementById("edit-task-description").value = task.description;
-    document.getElementById("edit-task-time").value = task.time;
-    document.getElementById("edit-difficulty-modifier").value = task.difficulty;
-    document.getElementById("edit-specialty-modifier").value = task.specialty;
-    document.getElementById("edit-task-frequency").value = task.frequency;
-
-    document.getElementById("edit-modal").style.display = "block";
+    loadTasksFromSheet('task-bank').then(tasks => {
+        const task = tasks[index];
+        document.getElementById("edit-task-index").value = index;
+        document.getElementById("edit-task-name").value = task.name;
+        document.getElementById("edit-task-description").value = task.description;
+        document.getElementById("edit-task-time").value = task.time;
+        document.getElementById("edit-difficulty-modifier").value = task.difficulty;
+        document.getElementById("edit-specialty-modifier").value = task.specialty;
+        document.getElementById("edit-task-frequency").value = task.frequency;
+        document.getElementById("edit-modal").style.display = "block";
+    });
 }
 
 function closeModal() {
     document.getElementById("edit-modal").style.display = "none";
-}
-
-function updateTask() {
-    const taskIndex = document.getElementById("edit-task-index").value;
-    const taskName = document.getElementById("edit-task-name").value;
-    const taskDescription = document.getElementById("edit-task-description").value;
-    const taskTime = parseInt(document.getElementById("edit-task-time").value);
-    const difficultyModifier = document.getElementById("edit-difficulty-modifier").value;
-    const specialtyModifier = document.getElementById("edit-specialty-modifier").value;
-    const taskFrequency = parseInt(document.getElementById("edit-task-frequency").value);
-
-    const task = {
-        name: taskName,
-        description: taskDescription,
-        time: taskTime,
-        difficulty: difficultyModifier,
-        specialty: specialtyModifier,
-        frequency: taskFrequency,
-    };
-
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    tasks[taskIndex] = task;
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-
-    closeModal();
-    loadTasks();
-    updateDropdowns();
-}
-
-function deleteTask(personId, taskIndex) {
-    if (personId) {
-        // Delete task from person's task list
-        let personTasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
-        personTasks.splice(taskIndex, 1);
-        localStorage.setItem(`${personId}-tasks`, JSON.stringify(personTasks));
-        updatePersonTaskList(personId);
-    } else {
-        // Delete task from task bank
-        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        tasks.splice(taskIndex, 1);
-        localStorage.setItem("tasks", JSON.stringify(tasks));
-        loadTasks();
-        updateDropdowns();
-    }
-}
-
-function createCustomTaskForm(containerId) {
-    const formContainer = document.getElementById(`${containerId}-form-container`);
-    formContainer.innerHTML = `
-        <h3>Add Custom Task</h3>
-        <form id="${containerId}-custom-task-form">
-            <input type="text" id="${containerId}-task-name" placeholder="Task Name" required>
-            <textarea id="${containerId}-task-description" placeholder="Task Description" required></textarea>
-            <input type="number" id="${containerId}-task-time" placeholder="Projected Time (minutes)" required>
-            <select id="${containerId}-difficulty-modifier" required>
-                <option value="tier1">Tier 1</option>
-                <option value="tier2">Tier 2</option>
-                <option value="tier3">Tier 3</option>
-            </select>
-            <select id="${containerId}-specialty-modifier" required>
-                <option value="constant">Constant (Daily+)</option>
-                <option value="frequent">Frequent (Daily to Weekly)</option>
-                <option value="moderate">Moderate (Weekly to Monthly)</option>
-                <option value="rare">Rare (Monthly+)</option>
-            </select>
-            <input type="number" id="${containerId}-task-frequency" placeholder="Times per Week (recurring tasks only)" required>
-            <button type="button" onclick="addCustomTask('${containerId}')">Add Custom Task</button>
-        </form>
-    `;
 }
 
 function toggleVisibility(id) {
@@ -409,64 +258,4 @@ function updateModifiers(type) {
 
     localStorage.setItem("modifiers", JSON.stringify(modifiers));
     alert("Modifiers updated successfully!");
-}
-
-// Google Sheets Integration Functions
-
-function saveTasksToSheet(personId) {
-    const tasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
-    const values = tasks.map(task => [task.taskIndex, task.taskCount, task.points, task.date]);
-
-    return gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: 'https://docs.google.com/spreadsheets/d/1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU/edit?gid=0#gid=0',
-        range: `${personId}!A1`,
-        valueInputOption: 'RAW',
-        resource: { values: values }
-    }).then((response) => {
-        console.log('Tasks saved to sheet', response);
-    }, (error) => {
-        console.error('Error saving tasks to sheet', error);
-    });
-}
-
-function loadTasksFromSheet(sheetName, callback) {
-    return gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: 'https://docs.google.com/spreadsheets/d/1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU/edit?gid=0#gid=0',
-        range: `${sheetName}!A1:F100`
-    }).then((response) => {
-        const tasks = response.result.values || [];
-        const formattedTasks = tasks.map(row => ({
-            name: row[0],
-            description: row[1],
-            time: parseInt(row[2]),
-            difficulty: row[3],
-            specialty: row[4],
-            frequency: parseFloat(row[5])
-        }));
-        localStorage.setItem(sheetName, JSON.stringify(formattedTasks));
-        callback();
-        console.log('Tasks loaded from sheet', formattedTasks);
-    }, (error) => {
-        console.error('Error loading tasks from sheet', error);
-    });
-}
-
-function saveTasksToSheet(sheetName) {
-    const tasks = JSON.parse(localStorage.getItem(sheetName)) || [];
-    const values = tasks.map(task => [task.name, task.description, task.time, task.difficulty, task.specialty, task.frequency]);
-
-    return gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: 'https://docs.google.com/spreadsheets/d/1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU/edit?gid=0#gid=0',
-        range: 'tasks!A1',
-        valueInputOption: 'RAW',
-        resource: { values: values }
-    }).then((response) => {
-        console.log('Tasks saved to sheet', response);
-    }, (error) => {
-        console.error('Error saving tasks to sheet', error);
-    });
-}
-
-function syncTasksFromSheets() {
-    loadTasksFromSheet('tasks', loadTasks);
 }
