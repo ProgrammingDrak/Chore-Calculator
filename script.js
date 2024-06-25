@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    authenticate().then(loadClient).then(syncTasksFromSheets);
     loadTasks();
     updateDropdowns();
     updatePersonTaskList('person1');
@@ -116,6 +117,8 @@ function addTask() {
 
     loadTasks();
     updateDropdowns();
+
+    saveTasksToSheet();
 }
 
 function loadTasks() {
@@ -406,4 +409,64 @@ function updateModifiers(type) {
 
     localStorage.setItem("modifiers", JSON.stringify(modifiers));
     alert("Modifiers updated successfully!");
+}
+
+// Google Sheets Integration Functions
+
+function saveTasksToSheet(personId) {
+    const tasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
+    const values = tasks.map(task => [task.taskIndex, task.taskCount, task.points, task.date]);
+
+    return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: 'https://docs.google.com/spreadsheets/d/1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU/edit?gid=0#gid=0',
+        range: `${personId}!A1`,
+        valueInputOption: 'RAW',
+        resource: { values: values }
+    }).then((response) => {
+        console.log('Tasks saved to sheet', response);
+    }, (error) => {
+        console.error('Error saving tasks to sheet', error);
+    });
+}
+
+function loadTasksFromSheet(sheetName, callback) {
+    return gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: 'https://docs.google.com/spreadsheets/d/1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU/edit?gid=0#gid=0',
+        range: `${sheetName}!A1:F100`
+    }).then((response) => {
+        const tasks = response.result.values || [];
+        const formattedTasks = tasks.map(row => ({
+            name: row[0],
+            description: row[1],
+            time: parseInt(row[2]),
+            difficulty: row[3],
+            specialty: row[4],
+            frequency: parseFloat(row[5])
+        }));
+        localStorage.setItem(sheetName, JSON.stringify(formattedTasks));
+        callback();
+        console.log('Tasks loaded from sheet', formattedTasks);
+    }, (error) => {
+        console.error('Error loading tasks from sheet', error);
+    });
+}
+
+function saveTasksToSheet(sheetName) {
+    const tasks = JSON.parse(localStorage.getItem(sheetName)) || [];
+    const values = tasks.map(task => [task.name, task.description, task.time, task.difficulty, task.specialty, task.frequency]);
+
+    return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: 'https://docs.google.com/spreadsheets/d/1oEUISyQQF1F29Bg8SlIAu7g_cNuewPhC3v4SimU2CfU/edit?gid=0#gid=0',
+        range: 'tasks!A1',
+        valueInputOption: 'RAW',
+        resource: { values: values }
+    }).then((response) => {
+        console.log('Tasks saved to sheet', response);
+    }, (error) => {
+        console.error('Error saving tasks to sheet', error);
+    });
+}
+
+function syncTasksFromSheets() {
+    loadTasksFromSheet('tasks', loadTasks);
 }
