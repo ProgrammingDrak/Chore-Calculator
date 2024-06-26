@@ -1,3 +1,25 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyC7q5_HlroXl_B5c8VpuTwnn0bhvX2rRfM",
+  authDomain: "gamify-your-life-427518.firebaseapp.com",
+  projectId: "gamify-your-life-427518",
+  storageBucket: "gamify-your-life-427518.appspot.com",
+  messagingSenderId: "158741644546",
+  appId: "1:158741644546:web:3e6aa5c3be76d1e8d5ee1b",
+  measurementId: "G-LK3ZM72T2W"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
 document.addEventListener("DOMContentLoaded", () => {
     loadTasks();
     updateDropdowns();
@@ -7,17 +29,43 @@ document.addEventListener("DOMContentLoaded", () => {
     createCustomTaskForm('person1');
     createCustomTaskForm('person2');
     loadModifiers();
+    setupTabSwitching();
 });
 
+function setupTabSwitching() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const subTabButtons = document.querySelectorAll('.sub-tab-button');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            openTab(event, button.textContent.trim());
+        });
+    });
+
+    subTabButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            openSubTab(event, button.textContent.trim().toLowerCase().replace(' ', '-'));
+        });
+    });
+}
+
 function deleteAllTasks() {
-    localStorage.removeItem('tasks');
-    loadTasks();
-    updateDropdowns();
+    db.collection("tasks").get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+            doc.ref.delete();
+        });
+        loadTasks();
+        updateDropdowns();
+    });
 }
 
 function resetLocalStorage() {
-    localStorage.clear();
-    location.reload();
+    db.collection("tasks").get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+            doc.ref.delete();
+        });
+        location.reload();
+    });
 }
 
 function initializeTasks() {
@@ -58,9 +106,10 @@ function initializeTasks() {
         { name: "Wet Vacuum the couch", description: "", time: 45, difficulty: "tier3", specialty: "rare", frequency: 0.125 }
     ];
 
-    localStorage.setItem("tasks", JSON.stringify(initialTasks));
+    initialTasks.forEach(task => {
+        db.collection("tasks").add(task);
+    });
     loadTasks();
-    updateDropdowns();
 }
 
 function openTab(event, tabName) {
@@ -71,11 +120,11 @@ function openTab(event, tabName) {
 
     const tabButtons = document.querySelectorAll(".tab-button");
     tabButtons.forEach(button => {
-        button.className = button.className.replace(" active", "");
+        button.classList.remove("active");
     });
 
     document.getElementById(tabName).style.display = "block";
-    event.currentTarget.className += " active";
+    event.currentTarget.classList.add("active");
 }
 
 function openSubTab(event, subTabName) {
@@ -86,11 +135,11 @@ function openSubTab(event, subTabName) {
 
     const subTabButtons = document.querySelectorAll(".sub-tab-button");
     subTabButtons.forEach(button => {
-        button.className = button.className.replace(" sub-tab-active", "");
+        button.classList.remove("sub-tab-active");
     });
 
     document.getElementById(subTabName).style.display = "block";
-    event.currentTarget.className += " sub-tab-active";
+    event.currentTarget.classList.add("sub-tab-active");
 }
 
 function addTask() {
@@ -110,10 +159,7 @@ function addTask() {
         frequency: taskFrequency,
     };
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    tasks.push(task);
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-
+    db.collection("tasks").add(task);
     loadTasks();
     updateDropdowns();
 }
@@ -122,28 +168,34 @@ function loadTasks() {
     const taskList = document.getElementById("task-list");
     taskList.innerHTML = "";
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    db.collection("tasks").get().then((querySnapshot) => {
+        let tasks = [];
+        querySnapshot.forEach((doc) => {
+            let task = doc.data();
+            task.id = doc.id;
+            tasks.push(task);
+        });
 
-    // Sort tasks alphabetically by name
-    tasks.sort((a, b) => a.name.localeCompare(b.name));
+        tasks.sort((a, b) => a.name.localeCompare(b.name));
 
-    tasks.forEach((task, index) => {
-        const taskPointValue = calculatePointValue(task);
-        const taskItem = document.createElement("li");
-        taskItem.textContent = `${task.name}: ${taskPointValue} points`;
+        tasks.forEach((task, index) => {
+            const taskPointValue = calculatePointValue(task);
+            const taskItem = document.createElement("li");
+            taskItem.textContent = `${task.name}: ${taskPointValue} points`;
 
-        const dropdown = document.createElement("div");
-        dropdown.className = "dropdown";
-        dropdown.innerHTML = `
-            <button class="dropdown-button">...</button>
-            <div class="dropdown-content">
-                <button onclick="openModal(${index})">Edit</button>
-                <button onclick="deleteTask(null, ${index})">Delete</button>
-            </div>
-        `;
+            const dropdown = document.createElement("div");
+            dropdown.className = "dropdown";
+            dropdown.innerHTML = `
+                <button class="dropdown-button">...</button>
+                <div class="dropdown-content">
+                    <button onclick="openModal('${task.id}')">Edit</button>
+                    <button onclick="deleteTask('${task.id}')">Delete</button>
+                </div>
+            `;
 
-        taskItem.appendChild(dropdown);
-        taskList.appendChild(taskItem);
+            taskItem.appendChild(dropdown);
+            taskList.appendChild(taskItem);
+        });
     });
 }
 
@@ -154,21 +206,27 @@ function updateDropdowns() {
     person1Dropdown.innerHTML = '<option value="" disabled selected>Generic Tasks</option>';
     person2Dropdown.innerHTML = '<option value="" disabled selected>Generic Tasks</option>';
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    db.collection("tasks").get().then((querySnapshot) => {
+        let tasks = [];
+        querySnapshot.forEach((doc) => {
+            let task = doc.data();
+            task.id = doc.id;
+            tasks.push(task);
+        });
 
-    // Sort tasks alphabetically by name
-    tasks.sort((a, b) => a.name.localeCompare(b.name));
+        tasks.sort((a, b) => a.name.localeCompare(b.name));
 
-    tasks.forEach((task, index) => {
-        const option1 = document.createElement("option");
-        option1.value = index;
-        option1.textContent = task.name;
-        person1Dropdown.appendChild(option1);
+        tasks.forEach((task) => {
+            const option1 = document.createElement("option");
+            option1.value = task.id;
+            option1.textContent = task.name;
+            person1Dropdown.appendChild(option1);
 
-        const option2 = document.createElement("option");
-        option2.value = index;
-        option2.textContent = task.name;
-        person2Dropdown.appendChild(option2);
+            const option2 = document.createElement("option");
+            option2.value = task.id;
+            option2.textContent = task.name;
+            person2Dropdown.appendChild(option2);
+        });
     });
 }
 
@@ -185,23 +243,26 @@ function calculatePointValue(task) {
     return task.time * (1 + modifiers[task.difficulty] + modifiers[task.specialty]);
 }
 
-function addPersonTask(personId, taskIndex = null, taskCount = null) {
+function addPersonTask(personId, taskId = null, taskCount = null) {
     const dropdown = document.getElementById(`${personId}-task-dropdown`);
     const taskCountInput = document.getElementById(`${personId}-task-count`);
     taskCount = taskCount || parseInt(taskCountInput.value);
-    taskIndex = taskIndex !== null ? taskIndex : dropdown.value;
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    const task = tasks[taskIndex];
-    const points = calculatePointValue(task) * taskCount;
+    taskId = taskId !== null ? taskId : dropdown.value;
 
-    let personTasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
-    personTasks.push({ taskIndex, taskCount, points, date: new Date() });
-    localStorage.setItem(`${personId}-tasks`, JSON.stringify(personTasks));
+    db.collection("tasks").doc(taskId).get().then((doc) => {
+        const task = doc.data();
+        const points = calculatePointValue(task) * taskCount;
 
-    updatePersonTaskList(personId);
+        db.collection(`${personId}-tasks`).add({
+            taskId,
+            taskCount,
+            points,
+            date: new Date()
+        });
 
-    // Reset the task count input to 1
-    taskCountInput.value = 1;
+        updatePersonTaskList(personId);
+        taskCountInput.value = 1;
+    });
 }
 
 function addCustomTask(containerId) {
@@ -222,50 +283,68 @@ function addCustomTask(containerId) {
     };
 
     if (containerId === 'task-bank') {
-        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        tasks.push(task);
-        localStorage.setItem("tasks", JSON.stringify(tasks));
-        loadTasks();
+        db.collection("tasks").add(task).then(() => {
+            loadTasks();
+        });
     } else {
-        let personTasks = JSON.parse(localStorage.getItem(`${containerId}-tasks`)) || [];
-        personTasks.push({ taskIndex: null, taskCount: 1, task, points: calculatePointValue(task), date: new Date() });
-        localStorage.setItem(`${containerId}-tasks`, JSON.stringify(personTasks));
-        updatePersonTaskList(containerId);
+        db.collection(`${containerId}-tasks`).add({
+            task,
+            taskCount: 1,
+            points: calculatePointValue(task),
+            date: new Date()
+        }).then(() => {
+            updatePersonTaskList(containerId);
+        });
     }
 }
 
 function updatePersonTaskList(personId) {
-    const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    let personTasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
+    const tasks = [];
+    db.collection("tasks").get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+            let task = doc.data();
+            task.id = doc.id;
+            tasks.push(task);
+        });
 
-    const totalPointsElement = document.getElementById(`${personId}-total-points`);
-    const todayPointsElement = document.getElementById(`${personId}-today-points`);
+        db.collection(`${personId}-tasks`).get().then((querySnapshot) => {
+            let personTasks = [];
+            querySnapshot.forEach((doc) => {
+                let task = doc.data();
+                task.id = doc.id;
+                personTasks.push(task);
+            });
 
-    const totalPoints = personTasks.reduce((sum, t) => sum + t.points, 0);
-    const todayPoints = personTasks.filter(t => isToday(t.date)).reduce((sum, t) => sum + t.points, 0);
+            const totalPointsElement = document.getElementById(`${personId}-total-points`);
+            const todayPointsElement = document.getElementById(`${personId}-today-points`);
 
-    totalPointsElement.textContent = totalPoints;
-    todayPointsElement.textContent = todayPoints;
+            const totalPoints = personTasks.reduce((sum, t) => sum + t.points, 0);
+            const todayPoints = personTasks.filter(t => isToday(t.date)).reduce((sum, t) => sum + t.points, 0);
 
-    const taskList = document.getElementById(`${personId}-task-list`);
-    taskList.innerHTML = "";
-    personTasks.forEach((t, index) => {
-        const task = t.taskIndex !== null ? tasks[t.taskIndex] : t.task;
-        const taskItem = document.createElement("li");
-        taskItem.textContent = `${task.name} - ${t.taskCount} instance(s) - ${t.points} points`;
+            totalPointsElement.textContent = totalPoints;
+            todayPointsElement.textContent = todayPoints;
 
-        const dropdown = document.createElement("div");
-        dropdown.className = "dropdown";
-        dropdown.innerHTML = `
-            <button class="dropdown-button">...</button>
-            <div class="dropdown-content">
-                <button onclick="openModal(${t.taskIndex})">Edit</button>
-                <button onclick="deleteTask('${personId}', ${index})">Delete</button>
-            </div>
-        `;
+            const taskList = document.getElementById(`${personId}-task-list`);
+            taskList.innerHTML = "";
+            personTasks.forEach((t, index) => {
+                const task = tasks.find(task => task.id === t.taskId) || t.task;
+                const taskItem = document.createElement("li");
+                taskItem.textContent = `${task.name} - ${t.taskCount} instance(s) - ${t.points} points`;
 
-        taskItem.appendChild(dropdown);
-        taskList.appendChild(taskItem);
+                const dropdown = document.createElement("div");
+                dropdown.className = "dropdown";
+                dropdown.innerHTML = `
+                    <button class="dropdown-button">...</button>
+                    <div class="dropdown-content">
+                        <button onclick="openModal('${t.taskId}')">Edit</button>
+                        <button onclick="deleteTask('${personId}', '${t.id}')">Delete</button>
+                    </div>
+                `;
+
+                taskItem.appendChild(dropdown);
+                taskList.appendChild(taskItem);
+            });
+        });
     });
 }
 
@@ -277,19 +356,20 @@ function isToday(date) {
            date.getFullYear() === today.getFullYear();
 }
 
-function openModal(index) {
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    const task = tasks[index];
+function openModal(id) {
+    db.collection("tasks").doc(id).get().then((doc) => {
+        const task = doc.data();
 
-    document.getElementById("edit-task-index").value = index;
-    document.getElementById("edit-task-name").value = task.name;
-    document.getElementById("edit-task-description").value = task.description;
-    document.getElementById("edit-task-time").value = task.time;
-    document.getElementById("edit-difficulty-modifier").value = task.difficulty;
-    document.getElementById("edit-specialty-modifier").value = task.specialty;
-    document.getElementById("edit-task-frequency").value = task.frequency;
+        document.getElementById("edit-task-index").value = id;
+        document.getElementById("edit-task-name").value = task.name;
+        document.getElementById("edit-task-description").value = task.description;
+        document.getElementById("edit-task-time").value = task.time;
+        document.getElementById("edit-difficulty-modifier").value = task.difficulty;
+        document.getElementById("edit-specialty-modifier").value = task.specialty;
+        document.getElementById("edit-task-frequency").value = task.frequency;
 
-    document.getElementById("edit-modal").style.display = "block";
+        document.getElementById("edit-modal").style.display = "block";
+    });
 }
 
 function closeModal() {
@@ -297,7 +377,7 @@ function closeModal() {
 }
 
 function updateTask() {
-    const taskIndex = document.getElementById("edit-task-index").value;
+    const taskId = document.getElementById("edit-task-index").value;
     const taskName = document.getElementById("edit-task-name").value;
     const taskDescription = document.getElementById("edit-task-description").value;
     const taskTime = parseInt(document.getElementById("edit-task-time").value);
@@ -314,29 +394,23 @@ function updateTask() {
         frequency: taskFrequency,
     };
 
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    tasks[taskIndex] = task;
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-
-    closeModal();
-    loadTasks();
-    updateDropdowns();
-}
-
-function deleteTask(personId, taskIndex) {
-    if (personId) {
-        // Delete task from person's task list
-        let personTasks = JSON.parse(localStorage.getItem(`${personId}-tasks`)) || [];
-        personTasks.splice(taskIndex, 1);
-        localStorage.setItem(`${personId}-tasks`, JSON.stringify(personTasks));
-        updatePersonTaskList(personId);
-    } else {
-        // Delete task from task bank
-        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        tasks.splice(taskIndex, 1);
-        localStorage.setItem("tasks", JSON.stringify(tasks));
+    db.collection("tasks").doc(taskId).update(task).then(() => {
+        closeModal();
         loadTasks();
         updateDropdowns();
+    });
+}
+
+function deleteTask(personId, taskId) {
+    if (personId) {
+        db.collection(`${personId}-tasks`).doc(taskId).delete().then(() => {
+            updatePersonTaskList(personId);
+        });
+    } else {
+        db.collection("tasks").doc(taskId).delete().then(() => {
+            loadTasks();
+            updateDropdowns();
+        });
     }
 }
 
@@ -356,7 +430,7 @@ function createCustomTaskForm(containerId) {
             <select id="${containerId}-specialty-modifier" required>
                 <option value="constant">Constant (Daily+)</option>
                 <option value="frequent">Frequent (Daily to Weekly)</option>
-                <option value="moderate">Moderate (Weekly to Monthly)</option>
+                <option value="moderate">Weekly to Monthly</option>
                 <option value="rare">Rare (Monthly+)</option>
             </select>
             <input type="number" id="${containerId}-task-frequency" placeholder="Times per Week" required>
