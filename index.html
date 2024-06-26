@@ -3,129 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Tracking Program</title>
+    <title>Task Tracker</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
 </head>
 <body>
     <div class="tabs">
-        <button class="tab-button" onclick="openTab(event, 'Bounty Board')">Bounty Board</button>
-        <button class="tab-button" onclick="openTab(event, 'menu')">Menu</button>
-        <button class="tab-button" onclick="openTab(event, 'person1')">Drake</button>
-        <button class="tab-button" onclick="openTab(event, 'person2')">Kelsey</button>
+        <button class="tab-button" onclick="openTab(event, 'task-bank')">Task Bank</button>
+        <button class="tab-button" onclick="openTab(event, 'modifiers')">Modifiers</button>
+        <button class="tab-button" onclick="openTab(event, 'person1')">Person 1</button>
+        <button class="tab-button" onclick="openTab(event, 'person2')">Person 2</button>
     </div>
 
-    <div id="menu" class="tab-content">
-        <h2>Menu</h2>
-        <button class="sub-tab-button" onclick="openSubTab(event, 'task-bank')">Task Bank</button>
-        <button class="sub-tab-button" onclick="openSubTab(event, 'modifiers')">Modifiers</button>
+    <div id="task-bank" class="tab-content">
+        <h2>Task Bank</h2>
+        <form id="task-bank-form">
+            <input type="text" id="task-name" placeholder="Task Name" required>
+            <input type="number" id="task-time" placeholder="Projected Time (minutes)" required>
+            <select id="difficulty-modifier">
+                <option value="0">Braindead</option>
+                <option value="0.5">Easy</option>
+                <option value="0.75">Medium</option>
+                <option value="1">Hard</option>
+            </select>
+            <select id="rarity-modifier">
+                <option value="0">Daily+</option>
+                <option value="0.25">Daily to Weekly</option>
+                <option value="0.5">Weekly to Monthly</option>
+                <option value="1">Monthly+</option>
+            </select>
+            <input type="number" id="task-frequency" placeholder="Times per Week" required>
+            <button type="button" onclick="addTask()">Add Task</button>
+        </form>
+        <button type="button" onclick="initializeTasks()">Initialize Tasks</button>
+        <ul id="task-list"></ul>
+    </div>
 
-        <div id="task-bank" class="sub-tab-content">
-            <h3>Task Bank</h3>
-            <div id="task-bank-form-container"></div>
-            <button onclick="deleteAllTasks()">Delete All Tasks</button>
-            <button onclick="resetLocalStorage()">Reset Local Storage</button>
-            <button onclick="initializeTasks()">Add Initial Tasks</button>
-            <ul id="task-list"></ul>
-        </div>
-
-        <div id="modifiers" class="sub-tab-content">
-            <h3>Modifiers</h3>
-            <div>
-                <button type="button" onclick="toggleVisibility('difficulty-modifiers')">Difficulty Modifiers</button>
-                <div id="difficulty-modifiers" style="display:none;">
-                    <form id="difficulty-modifiers-form">
-                        <label for="tier1">Tier 1:</label>
-                        <input type="number" id="tier1" placeholder="Tier 1" required>
-                        <label for="tier2">Tier 2:</label>
-                        <input type="number" id="tier2" placeholder="Tier 2" required>
-                        <label for="tier3">Tier 3:</label>
-                        <input type="number" id="tier3" placeholder="Tier 3" required>
-                        <button type="button" onclick="updateModifiers('difficulty')">Update Difficulty Modifiers</button>
-                    </form>
-                </div>
-            </div>
-            <div>
-                <button type="button" onclick="toggleVisibility('frequency-modifiers')">Frequency Modifiers</button>
-                <div id="frequency-modifiers" style="display:none;">
-                    <form id="frequency-modifiers-form">
-                        <label for="constant">Constant (Daily+):</label>
-                        <input type="number" id="constant" placeholder="Daily+" required>
-                        <label for="frequent">Frequent (Daily to Weekly):</label>
-                        <input type="number" id="frequent" placeholder="Daily to Weekly" required>
-                        <label for="moderate">Moderate (Weekly to Monthly):</label>
-                        <input type="number" id="moderate" placeholder="Weekly to Monthly" required>
-                        <label for="rare">Rare (Monthly+):</label>
-                        <input type="number" id="rare" placeholder="Monthly+" required>
-                        <button type="button" onclick="updateModifiers('frequency')">Update Frequency Modifiers</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+    <div id="modifiers" class="tab-content">
+        <h2>Modifiers</h2>
+        <form id="modifiers-form">
+            <label for="braindead">Braindead:</label>
+            <input type="number" id="braindead" placeholder="Braindead" required>
+            <label for="easy">Easy:</label>
+            <input type="number" id="easy" placeholder="Easy" required>
+            <label for="medium">Medium:</label>
+            <input type="number" id="medium" placeholder="Medium" required>
+            <label for="hard">Hard:</label>
+            <input type="number" id="hard" placeholder="Hard" required>
+            <label for="daily">Daily+:</label>
+            <input type="number" id="daily" placeholder="Daily+" required>
+            <label for="daily-weekly">Daily to Weekly:</label>
+            <input type="number" id="daily-weekly" placeholder="Daily to Weekly" required>
+            <label for="weekly-monthly">Weekly to Monthly:</label>
+            <input type="number" id="weekly-monthly" placeholder="Weekly to Monthly" required>
+            <label for="monthly">Monthly+:</label>
+            <input type="number" id="monthly" placeholder="Monthly+" required>
+            <button type="button" onclick="updateModifiers()">Update Modifiers</button>
+        </form>
     </div>
 
     <div id="person1" class="tab-content">
         <h2>Person 1's Tasks</h2>
-        <form id="person1-task-form">
-            <select id="person1-task-dropdown">
-                <option value="" disabled selected>Generic Tasks</option>
-            </select>
+        <form>
+            <select id="person1-task-dropdown"></select>
             <input type="number" id="person1-task-count" value="1" min="1" required>
             <button type="button" onclick="addPersonTask('person1')">Add Task</button>
         </form>
         <h3>Total Points: <span id="person1-total-points">0</span></h3>
-        <h3>Points Earned Today: <span id="person1-today-points">0</span></h3>
         <ul id="person1-task-list"></ul>
-        <div id="person1-form-container"></div>
     </div>
 
     <div id="person2" class="tab-content">
         <h2>Person 2's Tasks</h2>
-        <form id="person2-task-form">
-            <select id="person2-task-dropdown">
-                <option value="" disabled selected>Generic Tasks</option>
-            </select>
+        <form>
+            <select id="person2-task-dropdown"></select>
             <input type="number" id="person2-task-count" value="1" min="1" required>
             <button type="button" onclick="addPersonTask('person2')">Add Task</button>
         </form>
         <h3>Total Points: <span id="person2-total-points">0</span></h3>
-        <h3>Points Earned Today: <span id="person2-today-points">0</span></h3>
         <ul id="person2-task-list"></ul>
-        <div id="person2-form-container"></div>
-    </div>
-
-    <!-- Edit Task Modal -->
-    <div id="edit-modal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3>Edit Task</h3>
-            <form id="edit-task-form">
-                <input type="hidden" id="edit-task-index">
-                <label for="edit-task-name">Task Name:</label>
-                <input type="text" id="edit-task-name" required>
-                <label for="edit-task-description">Task Description:</label>
-                <textarea id="edit-task-description" required></textarea>
-                <label for="edit-task-time">Projected Time (minutes):</label>
-                <input type="number" id="edit-task-time" required>
-                <label for="edit-difficulty-modifier">Difficulty:</label>
-                <select id="edit-difficulty-modifier" required>
-                    <option value="tier1">Tier 1</option>
-                    <option value="tier2">Tier 2</option>
-                    <option value="tier3">Tier 3</option>
-                </select>
-                <label for="edit-specialty-modifier">Specialty:</label>
-                <select id="edit-specialty-modifier" required>
-                    <option value="constant">Constant (Daily+)</option>
-                    <option value="frequent">Frequent (Daily to Weekly)</option>
-                    <option value="moderate">Moderate (Weekly to Monthly)</option>
-                    <option value="rare">Rare (Monthly+)</option>
-                </select>
-                <label for="edit-task-frequency">Times per Week:</label>
-                <input type="number" id="edit-task-frequency" required>
-                <button type="button" onclick="updateTask()">Update Task</button>
-            </form>
-        </div>
     </div>
 
     <script src="script.js"></script>
