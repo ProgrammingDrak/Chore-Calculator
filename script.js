@@ -9,9 +9,20 @@ document.addEventListener("DOMContentLoaded", () => {
     loadModifiers();
 });
 
+function deleteAllTasks() {
+    localStorage.removeItem('tasks');
+    loadTasks();
+    updateDropdowns();
+}
+
+function resetLocalStorage() {
+    localStorage.clear();
+    location.reload();
+}
+
 function initializeTasks() {
     const initialTasks = [
-        { name: "After dinner clean up", description: "", time: 20, difficulty: "tier2", specialty: "constant", frequency: 7 },
+        { name: "After dinner clean up", description: "", time: 20, difficulty: "tier1", specialty: "constant", frequency: 7 },
         { name: "Clean the half bathroom", description: "", time: 20, difficulty: "tier3", specialty: "rare", frequency: 0.25 },
         { name: "Clean the windows", description: "", time: 30, difficulty: "tier3", specialty: "rare", frequency: 0.025 },
         { name: "Deep Clean - Four Seasons Room", description: "", time: 15, difficulty: "tier1", specialty: "rare", frequency: 0.025 },
@@ -50,17 +61,6 @@ function initializeTasks() {
     localStorage.setItem("tasks", JSON.stringify(initialTasks));
     loadTasks();
     updateDropdowns();
-}
-
-function deleteAllTasks() {
-    localStorage.removeItem('tasks');
-    loadTasks();
-    updateDropdowns();
-}
-
-function resetLocalStorage() {
-    localStorage.clear();
-    location.reload();
 }
 
 function openTab(event, tabName) {
@@ -174,13 +174,13 @@ function updateDropdowns() {
 
 function calculatePointValue(task) {
     const modifiers = JSON.parse(localStorage.getItem("modifiers")) || {
-        tier1: 0,
-        tier2: 0.5,
-        tier3: 0.75,
-        constant: 0,
-        frequent: 0.25,
-        moderate: 0.5,
-        rare: 0.75
+        tier1: 1,
+        tier2: 1.5,
+        tier3: 2,
+        constant: 1,
+        frequent: 1.5,
+        moderate: 2,
+        rare: 2.5
     };
     return task.time * (1 + modifiers[task.difficulty] + modifiers[task.specialty]);
 }
@@ -228,7 +228,7 @@ function addCustomTask(containerId) {
         loadTasks();
     } else {
         let personTasks = JSON.parse(localStorage.getItem(`${containerId}-tasks`)) || [];
-        personTasks.push({ task, points: calculatePointValue(task), date: new Date(), taskCount: 1 });
+        personTasks.push({ taskIndex: null, taskCount: 1, task, points: calculatePointValue(task), date: new Date() });
         localStorage.setItem(`${containerId}-tasks`, JSON.stringify(personTasks));
         updatePersonTaskList(containerId);
     }
@@ -359,7 +359,7 @@ function createCustomTaskForm(containerId) {
                 <option value="moderate">Moderate (Weekly to Monthly)</option>
                 <option value="rare">Rare (Monthly+)</option>
             </select>
-            <input type="number" id="${containerId}-task-frequency" placeholder="Times per Week (recurring tasks only)" required>
+            <input type="number" id="${containerId}-task-frequency" placeholder="Times per Week" required>
             <button type="button" onclick="addCustomTask('${containerId}')">Add Custom Task</button>
         </form>
     `;
@@ -372,13 +372,13 @@ function toggleVisibility(id) {
 
 function loadModifiers() {
     const modifiers = JSON.parse(localStorage.getItem("modifiers")) || {
-        tier1: 0,
-        tier2: 0.5,
-        tier3: 1,
-        constant: 0,
-        frequent: 0.25,
-        moderate: 0.5,
-        rare: 0.75
+        tier1: 1,
+        tier2: 1.5,
+        tier3: 2,
+        constant: 1,
+        frequent: 1.5,
+        moderate: 2,
+        rare: 2.5
     };
 
     document.getElementById("tier1").value = modifiers.tier1;
