@@ -12,13 +12,15 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadTasks();
+    console.log("DOM fully loaded and parsed");
+    loadTaskBank();
     loadModifiers();
     updateDropdowns('person1');
     updateDropdowns('person2');
 });
 
 function openTab(event, tabName) {
+    console.log(`Opening tab: ${tabName}`);
     const tabContents = document.querySelectorAll(".tab-content");
     tabContents.forEach(tab => tab.style.display = "none");
     document.getElementById(tabName).style.display = "block";
@@ -28,7 +30,7 @@ function openTab(event, tabName) {
     event.currentTarget.classList.add("active");
 }
 
-function addTask() {
+function addTaskToBank() {
     const task = {
         name: document.getElementById("task-name").value,
         time: parseInt(document.getElementById("task-time").value),
@@ -36,10 +38,15 @@ function addTask() {
         rarity: parseFloat(document.getElementById("rarity-modifier").value),
         frequency: parseInt(document.getElementById("task-frequency").value),
     };
-    db.collection("tasks").add(task).then(() => loadTasks());
+    db.collection("taskBank").add(task).then(() => {
+        console.log("Task added to task bank successfully");
+        loadTaskBank();
+    }).catch(error => {
+        console.error("Error adding task to task bank: ", error);
+    });
 }
 
-function initializeTasks() {
+function initializeTaskBank() {
     const initialTasks = [
         { name: "After dinner clean up", description: "", time: 20, difficulty: 0, rarity: 0, frequency: 7 },
         { name: "Clean the half bathroom", description: "", time: 20, difficulty: 1, rarity: 1, frequency: 0.25 },
@@ -47,24 +54,29 @@ function initializeTasks() {
     ];
 
     initialTasks.forEach(task => {
-        db.collection("tasks").add(task);
+        db.collection("taskBank").add(task).then(() => {
+            console.log(`Initialized task in task bank: ${task.name}`);
+            loadTaskBank();
+        }).catch(error => {
+            console.error(`Error initializing task in task bank: ${task.name}`, error);
+        });
     });
-    loadTasks();
 }
 
-function loadTasks() {
-    const taskList = document.getElementById("task-list");
+function loadTaskBank() {
+    const taskList = document.getElementById("task-bank-list");
     taskList.innerHTML = "";
 
-    db.collection("tasks").get().then(querySnapshot => {
+    db.collection("taskBank").get().then(querySnapshot => {
         querySnapshot.forEach(doc => {
             const task = doc.data();
             const taskItem = document.createElement("li");
             taskItem.textContent = `${task.name} - ${calculatePoints(task)} points`;
             taskList.appendChild(taskItem);
         });
-        updateDropdowns('person1');
-        updateDropdowns('person2');
+        console.log("Task bank loaded successfully");
+    }).catch(error => {
+        console.error("Error loading task bank: ", error);
     });
 }
 
@@ -72,7 +84,7 @@ function updateDropdowns(personId) {
     const dropdown = document.getElementById(`${personId}-task-dropdown`);
     dropdown.innerHTML = '<option value="" disabled selected>Select Task</option>';
 
-    db.collection("tasks").get().then(querySnapshot => {
+    db.collection("taskBank").get().then(querySnapshot => {
         querySnapshot.forEach(doc => {
             const task = doc.data();
             const option = document.createElement("option");
@@ -80,6 +92,9 @@ function updateDropdowns(personId) {
             option.textContent = task.name;
             dropdown.appendChild(option);
         });
+        console.log(`Dropdowns updated for ${personId}`);
+    }).catch(error => {
+        console.error("Error updating dropdowns: ", error);
     });
 }
 
@@ -88,16 +103,23 @@ function addPersonTask(personId) {
     const taskId = dropdown.value;
     const taskCount = parseInt(document.getElementById(`${personId}-task-count`).value);
 
-    db.collection("tasks").doc(taskId).get().then(doc => {
+    db.collection("taskBank").doc(taskId).get().then(doc => {
         const task = doc.data();
         const points = calculatePoints(task) * taskCount;
 
-        db.collection(`${personId}-tasks`).add({
+        db.collection(`users/${personId}/tasks`).add({
             taskId,
             taskCount,
             points,
             date: new Date()
-        }).then(() => updatePersonTaskList(personId));
+        }).then(() => {
+            console.log(`Task added to ${personId}`);
+            updatePersonTaskList(personId);
+        }).catch(error => {
+            console.error(`Error adding task to ${personId}: `, error);
+        });
+    }).catch(error => {
+        console.error("Error getting task from task bank: ", error);
     });
 }
 
@@ -106,19 +128,23 @@ function updatePersonTaskList(personId) {
     taskList.innerHTML = "";
     let totalPoints = 0;
 
-    db.collection(`${personId}-tasks`).get().then(querySnapshot => {
+    db.collection(`users/${personId}/tasks`).get().then(querySnapshot => {
         querySnapshot.forEach(doc => {
             const personTask = doc.data();
             totalPoints += personTask.points;
 
-            db.collection("tasks").doc(personTask.taskId).get().then(taskDoc => {
+            db.collection("taskBank").doc(personTask.taskId).get().then(taskDoc => {
                 const task = taskDoc.data();
                 const taskItem = document.createElement("li");
                 taskItem.textContent = `${task.name} - ${personTask.taskCount} instances - ${personTask.points} points`;
                 taskList.appendChild(taskItem);
+            }).catch(error => {
+                console.error("Error fetching task from task bank: ", error);
             });
         });
         document.getElementById(`${personId}-total-points`).textContent = totalPoints;
+    }).catch(error => {
+        console.error(`Error updating task list for ${personId}: `, error);
     });
 }
 
@@ -136,6 +162,8 @@ function loadModifiers() {
             modifiers["weekly-monthly"].value = data["weekly-monthly"];
             modifiers.monthly.value = data.monthly;
         }
+    }).catch(error => {
+        console.error("Error loading modifiers: ", error);
     });
 }
 
@@ -150,7 +178,11 @@ function updateModifiers() {
         "weekly-monthly": parseFloat(document.getElementById("weekly-monthly").value),
         monthly: parseFloat(document.getElementById("monthly").value),
     };
-    db.collection("modifiers").doc("default").set(modifiers);
+    db.collection("modifiers").doc("default").set(modifiers).then(() => {
+        console.log("Modifiers updated successfully.");
+    }).catch(error => {
+        console.error("Error updating modifiers: ", error);
+    });
 }
 
 function calculatePoints(task) {
