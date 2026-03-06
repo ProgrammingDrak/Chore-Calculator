@@ -3,126 +3,415 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Tracking Program</title>
+    <title>Bounty Tracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="tabs">
-        <button class="tab-button" onclick="openTab(event, 'Bounty Board')">Bounty Board</button>
-        <button class="tab-button" onclick="openTab(event, 'menu')">Menu</button>
-        <button class="tab-button" onclick="openTab(event, 'person1')">Drake</button>
-        <button class="tab-button" onclick="openTab(event, 'person2')">Kelsey</button>
+
+    <!-- ===== App Header ===== -->
+    <div class="app-header">
+        <div class="tabs">
+            <button class="tab-button active" onclick="openTab(event, 'bounty-board')">Bounty Board</button>
+            <button class="tab-button" onclick="openTab(event, 'focus')">Focus</button>
+            <button class="tab-button" onclick="openTab(event, 'reward-wheel')">
+                Reward Wheel
+                <span id="free-spin-badge" class="free-spin-badge" style="display:none;"></span>
+            </button>
+        </div>
+        <button class="settings-btn" onclick="openSettings()" title="Settings">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 13a3 3 0 100-6 3 3 0 000 6z" stroke="white" stroke-width="1.5"/>
+                <path d="M17.4 12.2a1.5 1.5 0 00.3 1.65l.05.05a1.82 1.82 0 01-1.29 3.11 1.82 1.82 0 01-1.29-.53l-.05-.06a1.5 1.5 0 00-1.65-.3 1.5 1.5 0 00-.91 1.37v.14a1.82 1.82 0 01-3.64 0v-.07a1.5 1.5 0 00-.98-1.37 1.5 1.5 0 00-1.65.3l-.06.06a1.82 1.82 0 01-2.57-2.58l.05-.05a1.5 1.5 0 00.3-1.65 1.5 1.5 0 00-1.37-.91H2.5a1.82 1.82 0 010-3.64h.07a1.5 1.5 0 001.37-.98 1.5 1.5 0 00-.3-1.65l-.06-.06a1.82 1.82 0 012.58-2.57l.05.05a1.5 1.5 0 001.65.3h.07a1.5 1.5 0 00.91-1.37V2.5a1.82 1.82 0 013.64 0v.07a1.5 1.5 0 00.91 1.37 1.5 1.5 0 001.65-.3l.06-.06a1.82 1.82 0 012.57 2.58l-.05.05a1.5 1.5 0 00-.3 1.65v.07a1.5 1.5 0 001.37.91h.14a1.82 1.82 0 010 3.64h-.07a1.5 1.5 0 00-1.37.91z" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </button>
     </div>
 
-    <div id="menu" class="tab-content">
-        <h2>Menu</h2>
-        <button class="sub-tab-button" onclick="openSubTab(event, 'task-bank')">Task Bank</button>
-        <button class="sub-tab-button" onclick="openSubTab(event, 'modifiers')">Modifiers</button>
+    <!-- ===== Tab: Bounty Board ===== -->
+    <div id="bounty-board" class="tab-content" style="display:block;">
 
-        <div id="task-bank" class="sub-tab-content">
-            <h3>Task Bank</h3>
-            <div id="task-bank-form-container"></div>
-            <button onclick="deleteAllTasks()">Delete All Tasks</button>
-            <button onclick="resetLocalStorage()">Reset Local Storage</button>
-            <button onclick="initializeTasks()">Add Initial Tasks</button>
-            <ul id="task-list"></ul>
-        </div>
+        <!-- View Control Bar -->
+        <div class="view-bar">
+            <div class="view-bar-left">
+                <div class="view-toggles">
+                    <button class="view-toggle active" onclick="switchView(event, 'kanban')">Board</button>
+                    <button class="view-toggle" onclick="switchView(event, 'calendar')">Calendar</button>
+                </div>
 
-        <div id="modifiers" class="sub-tab-content">
-            <h3>Modifiers</h3>
-            <div>
-                <button type="button" onclick="toggleVisibility('difficulty-modifiers')">Difficulty Modifiers</button>
-                <div id="difficulty-modifiers" style="display:none;">
-                    <form id="difficulty-modifiers-form">
-                        <label for="tier1">Tier 1:</label>
-                        <input type="number" id="tier1" placeholder="Tier 1" required>
-                        <label for="tier2">Tier 2:</label>
-                        <input type="number" id="tier2" placeholder="Tier 2" required>
-                        <label for="tier3">Tier 3:</label>
-                        <input type="number" id="tier3" placeholder="Tier 3" required>
-                        <button type="button" onclick="updateModifiers('difficulty')">Update Difficulty Modifiers</button>
-                    </form>
+                <div id="calendar-scale" class="calendar-scale" style="display:none;">
+                    <button class="scale-btn active" onclick="setCalendarScale(event, 'month')">Month</button>
+                    <button class="scale-btn" onclick="setCalendarScale(event, 'week')">Week</button>
+                    <button class="scale-btn" onclick="setCalendarScale(event, '3day')">3-Day</button>
+                    <button class="scale-btn" onclick="setCalendarScale(event, 'day')">Day</button>
+                </div>
+
+                <div id="calendar-sub-views" class="calendar-sub-views" style="display:none;">
+                    <button class="sub-view-btn active" onclick="setCalendarSubView(event, 'planning')">Planning</button>
+                    <button class="sub-view-btn" onclick="setCalendarSubView(event, 'actual')">Actual</button>
+                    <button class="sub-view-btn" onclick="setCalendarSubView(event, 'sidebyside')">Side by Side</button>
                 </div>
             </div>
-            <div>
-                <button type="button" onclick="toggleVisibility('frequency-modifiers')">Frequency Modifiers</button>
-                <div id="frequency-modifiers" style="display:none;">
-                    <form id="frequency-modifiers-form">
-                        <label for="constant">Constant (Daily+):</label>
-                        <input type="number" id="constant" placeholder="Daily+" required>
-                        <label for="frequent">Frequent (Daily to Weekly):</label>
-                        <input type="number" id="frequent" placeholder="Daily to Weekly" required>
-                        <label for="moderate">Moderate (Weekly to Monthly):</label>
-                        <input type="number" id="moderate" placeholder="Weekly to Monthly" required>
-                        <label for="rare">Rare (Monthly+):</label>
-                        <input type="number" id="rare" placeholder="Monthly+" required>
-                        <button type="button" onclick="updateModifiers('frequency')">Update Frequency Modifiers</button>
-                    </form>
+
+            <div class="view-bar-right">
+                <div id="kanban-controls" class="kanban-controls">
+                    <select id="kanban-group-by" onchange="renderKanban()">
+                        <option value="status">Group: Status</option>
+                        <option value="priority">Group: Priority</option>
+                        <option value="assignee">Group: Assignee</option>
+                    </select>
+                    <select id="kanban-filter" onchange="renderKanban()">
+                        <option value="all">Filter: All</option>
+                    </select>
+                </div>
+
+                <div id="calendar-nav" class="calendar-nav" style="display:none;">
+                    <button class="nav-btn" onclick="navigateCalendar(-1)">&lt;</button>
+                    <span id="calendar-date-label">March 2026</span>
+                    <button class="nav-btn" onclick="navigateCalendar(1)">&gt;</button>
+                    <button class="nav-btn today-btn" onclick="navigateCalendarToday()">Today</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kanban View -->
+        <div id="kanban-view" class="board-view">
+            <div id="kanban-columns" class="kanban-columns">
+                <!-- Columns rendered by JS -->
+            </div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="calendar-view" class="board-view" style="display:none;">
+            <div class="calendar-layout">
+                <div id="calendar-sidebar" class="calendar-sidebar">
+                    <h4>Unscheduled</h4>
+                    <div id="unscheduled-cards" class="unscheduled-cards">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+                <div id="calendar-grid-container" class="calendar-grid-container">
+                    <!-- Rendered by JS: month grid or hourly grid -->
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="person1" class="tab-content">
-        <h2>Person 1's Tasks</h2>
-        <form id="person1-task-form">
-            <select id="person1-task-dropdown">
-                <option value="" disabled selected>Generic Tasks</option>
+    <!-- ===== Tab: Focus (Pomodoro Timer) ===== -->
+    <div id="focus" class="tab-content">
+
+        <!-- Task Selector -->
+        <div class="focus-task-selector">
+            <select id="focus-task-select" onchange="selectFocusTask()">
+                <option value="" disabled selected>Select a task...</option>
             </select>
-            <input type="number" id="person1-task-count" value="1" min="1" required>
-            <button type="button" onclick="addPersonTask('person1')">Add Task</button>
-        </form>
-        <h3>Total Points: <span id="person1-total-points">0</span></h3>
-        <h3>Points Earned Today: <span id="person1-today-points">0</span></h3>
-        <ul id="person1-task-list"></ul>
-        <div id="person1-form-container"></div>
+            <span class="focus-or">or</span>
+            <input type="text" id="focus-quick-task" placeholder="Quick task name...">
+        </div>
+
+        <!-- Timer Display -->
+        <div class="timer-container">
+            <svg class="timer-ring" viewBox="0 0 220 220">
+                <circle class="timer-ring-bg" cx="110" cy="110" r="100" />
+                <circle id="timer-ring-progress" class="timer-ring-progress" cx="110" cy="110" r="100"
+                    stroke-dasharray="628.32" stroke-dashoffset="0"
+                    transform="rotate(-90 110 110)" />
+            </svg>
+            <div class="timer-center">
+                <div id="timer-time" class="timer-time">25:00</div>
+                <div id="timer-label" class="timer-label">Focus</div>
+            </div>
+        </div>
+
+        <div id="focus-task-name" class="focus-task-name"></div>
+        <div id="session-counter" class="session-counter">Session 1 of 4</div>
+
+        <!-- Timer Controls -->
+        <div class="timer-controls">
+            <button id="timer-main-btn" class="timer-btn timer-start" onclick="toggleTimer()">Start</button>
+            <button id="timer-stop-btn" class="timer-btn timer-stop" onclick="stopTimer()" style="display:none;">Stop</button>
+            <button id="extend-1-btn" class="timer-btn timer-extend" onclick="extendTimer(1)" style="display:none;">+1</button>
+            <button id="extend-5-btn" class="timer-btn timer-extend" onclick="extendTimer(5)" style="display:none;">+5</button>
+            <button id="skip-break-btn" class="timer-btn timer-skip" onclick="skipBreak()" style="display:none;">Skip Break</button>
+        </div>
+
+        <!-- Focus Stats -->
+        <div class="focus-stats">
+            <h3>Today's Focus</h3>
+            <div id="focus-today-stats" class="focus-today-stats">
+                <span id="focus-today-hours">0h 0m</span> focused
+                <span class="stat-separator">|</span>
+                <span id="focus-today-sessions">0</span> sessions
+            </div>
+
+            <h4>Recent Sessions</h4>
+            <ul id="focus-recent-list" class="focus-recent-list">
+                <!-- Rendered by JS -->
+            </ul>
+        </div>
     </div>
 
-    <div id="person2" class="tab-content">
-        <h2>Person 2's Tasks</h2>
-        <form id="person2-task-form">
-            <select id="person2-task-dropdown">
-                <option value="" disabled selected>Generic Tasks</option>
-            </select>
-            <input type="number" id="person2-task-count" value="1" min="1" required>
-            <button type="button" onclick="addPersonTask('person2')">Add Task</button>
-        </form>
-        <h3>Total Points: <span id="person2-total-points">0</span></h3>
-        <h3>Points Earned Today: <span id="person2-today-points">0</span></h3>
-        <ul id="person2-task-list"></ul>
-        <div id="person2-form-container"></div>
+    <!-- ===== Tab: Reward Wheel ===== -->
+    <div id="reward-wheel" class="tab-content">
+        <div class="wheel-header">
+            <h2>Reward Wheel</h2>
+            <div class="spin-cost-control">
+                <label for="spin-cost">Spin Cost:</label>
+                <input type="number" id="spin-cost" value="100" min="1" onchange="updateSpinCost()">
+                <span>pts</span>
+            </div>
+        </div>
+
+        <div id="free-spin-notice" class="free-spin-notice" style="display:none;">
+            <span id="free-spin-count"></span> free spin(s) available!
+            <button onclick="useFreeSpin()">Use Free Spin</button>
+        </div>
+
+        <div class="wheel-container">
+            <div class="wheel-pointer"></div>
+            <canvas id="wheel-canvas" width="340" height="340"></canvas>
+            <button id="spin-button" onclick="spinWheel()">SPIN</button>
+        </div>
+
+        <div id="wheel-result" class="wheel-result" style="display:none;">
+            <h3 id="wheel-result-text"></h3>
+            <button onclick="dismissResult()">OK</button>
+        </div>
+
+        <div class="wheel-controls">
+            <h3>Rewards</h3>
+            <div class="wheel-add-section">
+                <input type="text" id="wheel-custom-name" placeholder="Reward name...">
+                <input type="number" id="wheel-custom-cost" placeholder="Point cost" min="1">
+                <button onclick="addWheelItem()">Add</button>
+            </div>
+            <ul id="wheel-items-list"></ul>
+
+            <div class="wheel-config-section">
+                <input type="text" id="wheel-config-name" placeholder="Wheel name...">
+                <button onclick="saveWheelConfig()">Save Wheel</button>
+                <select id="wheel-config-select" onchange="loadWheelConfig()">
+                    <option value="" disabled selected>Load saved wheel...</option>
+                </select>
+                <button onclick="deleteWheelConfig()">Delete</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Edit Task Modal -->
-    <div id="edit-modal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3>Edit Task</h3>
-            <form id="edit-task-form">
-                <input type="hidden" id="edit-task-index">
-                <label for="edit-task-name">Task Name:</label>
-                <input type="text" id="edit-task-name" required>
-                <label for="edit-task-description">Task Description:</label>
-                <textarea id="edit-task-description" required></textarea>
-                <label for="edit-task-time">Projected Time (minutes):</label>
-                <input type="number" id="edit-task-time" required>
-                <label for="edit-difficulty-modifier">Difficulty:</label>
-                <select id="edit-difficulty-modifier" required>
-                    <option value="tier1">Tier 1</option>
-                    <option value="tier2">Tier 2</option>
-                    <option value="tier3">Tier 3</option>
-                </select>
-                <label for="edit-specialty-modifier">Specialty:</label>
-                <select id="edit-specialty-modifier" required>
-                    <option value="constant">Constant (Daily+)</option>
-                    <option value="frequent">Frequent (Daily to Weekly)</option>
-                    <option value="moderate">Moderate (Weekly to Monthly)</option>
-                    <option value="rare">Rare (Monthly+)</option>
-                </select>
-                <label for="edit-task-frequency">Times per Week:</label>
-                <input type="number" id="edit-task-frequency" required>
-                <button type="button" onclick="updateTask()">Update Task</button>
-            </form>
+    <!-- ===== Card Modal ===== -->
+    <div id="card-modal" class="modal" onclick="if(event.target===this)closeCardModal()">
+        <div class="modal-content card-modal-content">
+            <button class="modal-close" onclick="closeCardModal()">&times;</button>
+
+            <input type="text" id="card-modal-title" class="card-modal-title" placeholder="Task title..."
+                onchange="updateCardTitle()">
+
+            <div class="card-modal-body">
+                <!-- Properties -->
+                <div class="card-properties">
+                    <div class="card-prop">
+                        <label>Status</label>
+                        <select id="card-prop-status" onchange="updateCardProp('status', this.value)">
+                            <option value="Backlog">Backlog</option>
+                            <option value="To Do">To Do</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                    <div class="card-prop">
+                        <label>Priority</label>
+                        <select id="card-prop-priority" onchange="updateCardProp('priority', this.value)">
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                    <div class="card-prop">
+                        <label>Difficulty</label>
+                        <select id="card-prop-difficulty" onchange="updateCardProp('difficulty', this.value)">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="card-prop">
+                        <label>Est. Time</label>
+                        <select id="card-prop-estimatedTime" onchange="updateCardProp('estimatedTime', this.value)">
+                            <option value="15 min">15 min</option>
+                            <option value="30 min">30 min</option>
+                            <option value="45 min">45 min</option>
+                            <option value="1 hr">1 hr</option>
+                            <option value="2 hr">2 hr</option>
+                            <option value="3+ hr">3+ hr</option>
+                        </select>
+                    </div>
+                    <div class="card-prop">
+                        <label>Due Date</label>
+                        <input type="date" id="card-prop-dueDate" onchange="updateCardProp('dueDate', this.value)">
+                    </div>
+                    <div class="card-prop">
+                        <label>Scheduled</label>
+                        <input type="date" id="card-prop-scheduled" onchange="updateCardProp('scheduled', this.value)">
+                    </div>
+                    <div class="card-prop">
+                        <label>Time</label>
+                        <input type="time" id="card-prop-scheduledTime" onchange="updateCardProp('scheduledTime', this.value)">
+                    </div>
+                    <div class="card-prop">
+                        <label>Tags</label>
+                        <div id="card-prop-tags" class="card-tags-display">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+                    <div class="card-prop">
+                        <label>Points</label>
+                        <span id="card-prop-points" class="card-points-display">0</span>
+                    </div>
+                </div>
+
+                <!-- Parent Task Link -->
+                <div id="card-parent-link" class="card-parent-link" style="display:none;">
+                    Continuation of: <a href="#" id="card-parent-name" onclick="openParentCard(event)"></a>
+                </div>
+
+                <!-- Sub-tasks -->
+                <div id="card-subtasks" class="card-subtasks" style="display:none;">
+                    <h4>Sub-tasks</h4>
+                    <ul id="card-subtask-list"></ul>
+                </div>
+
+                <!-- Description -->
+                <div class="card-description">
+                    <h4>Description</h4>
+                    <textarea id="card-modal-description" placeholder="Add a description..."
+                        onchange="updateCardDescription()"></textarea>
+                </div>
+
+                <!-- Comments -->
+                <div class="card-comments">
+                    <h4>Comments</h4>
+                    <ul id="card-comment-list" class="comment-list">
+                        <!-- Rendered by JS -->
+                    </ul>
+                    <div class="add-comment">
+                        <input type="text" id="card-new-comment" placeholder="Add a comment..."
+                            onkeydown="if(event.key==='Enter')addComment()">
+                        <button onclick="addComment()">Post</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-modal-footer">
+                <button class="delete-card-btn" onclick="deleteCurrentCard()">Delete Card</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Settings Modal ===== -->
+    <div id="settings-modal" class="modal" onclick="if(event.target===this)closeSettings()">
+        <div class="modal-content settings-modal-content">
+            <button class="modal-close" onclick="closeSettings()">&times;</button>
+            <h2>Settings</h2>
+
+            <div class="settings-section">
+                <h3>People</h3>
+                <div class="settings-inline">
+                    <input type="text" id="settings-new-person" placeholder="Add person...">
+                    <button onclick="addPerson()">Add</button>
+                </div>
+                <ul id="settings-people-list" class="settings-list"></ul>
+            </div>
+
+            <div class="settings-section">
+                <h3>Tags</h3>
+                <div class="settings-inline">
+                    <input type="text" id="settings-new-tag" placeholder="Add tag...">
+                    <button onclick="addTag()">Add</button>
+                </div>
+                <ul id="settings-tags-list" class="settings-list"></ul>
+            </div>
+
+            <div class="settings-section">
+                <h3>Focus Timer</h3>
+                <div class="settings-grid">
+                    <label>Focus Duration (min)</label>
+                    <input type="number" id="settings-focus-duration" value="25" min="1" max="120"
+                        onchange="saveFocusSettings()">
+                    <label>Short Break (min)</label>
+                    <input type="number" id="settings-short-break" value="5" min="1" max="30"
+                        onchange="saveFocusSettings()">
+                    <label>Long Break (min)</label>
+                    <input type="number" id="settings-long-break" value="15" min="1" max="60"
+                        onchange="saveFocusSettings()">
+                    <label>Long Break Interval</label>
+                    <input type="number" id="settings-break-interval" value="4" min="1" max="12"
+                        onchange="saveFocusSettings()">
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Free Spins</h3>
+                <div class="settings-grid">
+                    <label>Spins per reward</label>
+                    <input type="number" id="settings-spins-per-reward" value="1" min="1" max="10"
+                        onchange="saveFocusSettings()">
+                    <label>Pomodoros per spin</label>
+                    <input type="number" id="settings-pomodoros-per-spin" value="4" min="1" max="20"
+                        onchange="saveFocusSettings()">
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Data</h3>
+                <div class="settings-data-actions">
+                    <button onclick="exportData()">Export All Data</button>
+                    <label class="import-btn">
+                        Import Data
+                        <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
+                    </label>
+                    <button class="danger-btn" onclick="resetAllData()">Reset All Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Pomodoro Completion Popup ===== -->
+    <div id="completion-popup" class="modal">
+        <div class="modal-content completion-content">
+            <div id="completion-break-timer" class="completion-break-timer">
+                Break: <span id="completion-break-time">5:00</span>
+            </div>
+
+            <h3>Pomodoro Complete!</h3>
+            <p>What did you accomplish?</p>
+            <textarea id="completion-text" placeholder="Describe what you accomplished..."></textarea>
+
+            <div class="completion-buttons">
+                <button class="completion-btn completed-btn" onclick="completePomodoro('completed')">Completed</button>
+                <button class="completion-btn partial-btn" onclick="showPartialForm()">Partial</button>
+            </div>
+
+            <!-- Partial Completion Form (hidden until "Partial" clicked) -->
+            <div id="partial-form" class="partial-form" style="display:none;">
+                <div class="partial-field">
+                    <label>Percentage completed</label>
+                    <input type="range" id="partial-percentage" min="1" max="99" value="50"
+                        oninput="document.getElementById('partial-pct-display').textContent=this.value+'%'">
+                    <span id="partial-pct-display">50%</span>
+                </div>
+                <div class="partial-field">
+                    <label>
+                        <input type="checkbox" id="partial-create-continuation" checked>
+                        Create continuation task
+                    </label>
+                </div>
+                <div id="partial-continuation-name-field" class="partial-field">
+                    <label>Continuation task name</label>
+                    <input type="text" id="partial-continuation-name">
+                </div>
+                <button class="completion-btn submit-partial-btn" onclick="completePomodoro('partial')">Submit</button>
+            </div>
+
+            <button id="completion-skip-break" class="timer-btn timer-skip" onclick="skipBreakFromPopup()">Skip Break</button>
         </div>
     </div>
 
