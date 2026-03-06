@@ -104,7 +104,7 @@
                 <option value="" disabled selected>Select a task...</option>
             </select>
             <span class="focus-or">or</span>
-            <input type="text" id="focus-quick-task" placeholder="Quick task name...">
+            <input type="text" id="focus-quick-task" placeholder="Quick task name..." oninput="onQuickTaskInput()">
         </div>
 
         <!-- Timer Display -->
@@ -179,8 +179,8 @@
         <div class="wheel-controls">
             <h3>Rewards</h3>
             <div class="wheel-add-section">
-                <input type="text" id="wheel-custom-name" placeholder="Reward name...">
-                <input type="number" id="wheel-custom-cost" placeholder="Point cost" min="1">
+                <input type="text" id="wheel-custom-name" placeholder="Reward name..." onkeydown="if(event.key==='Enter')addWheelItem()">
+                <input type="number" id="wheel-custom-cost" placeholder="Point cost" min="1" onkeydown="if(event.key==='Enter')addWheelItem()">
                 <button onclick="addWheelItem()">Add</button>
             </div>
             <ul id="wheel-items-list"></ul>
@@ -257,6 +257,12 @@
                         <input type="time" id="card-prop-scheduledTime" onchange="updateCardProp('scheduledTime', this.value)">
                     </div>
                     <div class="card-prop">
+                        <label>Assignee</label>
+                        <select id="card-prop-assignee" onchange="updateCardProp('assignee', this.value)">
+                            <option value="">Unassigned</option>
+                        </select>
+                    </div>
+                    <div class="card-prop">
                         <label>Tags</label>
                         <div id="card-prop-tags" class="card-tags-display">
                             <!-- Rendered by JS -->
@@ -315,7 +321,7 @@
             <div class="settings-section">
                 <h3>People</h3>
                 <div class="settings-inline">
-                    <input type="text" id="settings-new-person" placeholder="Add person...">
+                    <input type="text" id="settings-new-person" placeholder="Add person..." onkeydown="if(event.key==='Enter')addPerson()">
                     <button onclick="addPerson()">Add</button>
                 </div>
                 <ul id="settings-people-list" class="settings-list"></ul>
@@ -324,7 +330,7 @@
             <div class="settings-section">
                 <h3>Tags</h3>
                 <div class="settings-inline">
-                    <input type="text" id="settings-new-tag" placeholder="Add tag...">
+                    <input type="text" id="settings-new-tag" placeholder="Add tag..." onkeydown="if(event.key==='Enter')addTag()">
                     <button onclick="addTag()">Add</button>
                 </div>
                 <ul id="settings-tags-list" class="settings-list"></ul>

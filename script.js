@@ -22,17 +22,8 @@ function formatTime(timeStr) {
     return hour + ':' + String(m).padStart(2, '0') + ' ' + ampm;
 }
 
-function isToday(dateStr) {
-    const today = new Date();
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.getDate() === today.getDate() &&
-           d.getMonth() === today.getMonth() &&
-           d.getFullYear() === today.getFullYear();
-}
-
 function todayStr() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return dateToStr(new Date());
 }
 
 function parseTimeToMinutes(timeStr) {
@@ -77,11 +68,17 @@ function seededShuffle(arr, seed) {
 
 // ===== Data Layer =====
 
+let _cardsCache = null;
+
 function getCards() {
-    return JSON.parse(localStorage.getItem('cards')) || [];
+    if (_cardsCache === null) {
+        _cardsCache = JSON.parse(localStorage.getItem('cards')) || [];
+    }
+    return _cardsCache;
 }
 
 function saveCards(cards) {
+    _cardsCache = cards;
     localStorage.setItem('cards', JSON.stringify(cards));
 }
 
@@ -289,9 +286,18 @@ function renderKanban() {
             '</div>';
 
         const cardsContainer = col.querySelector('.kanban-column-cards');
+        if (group.cards.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = 'No tasks';
+            cardsContainer.appendChild(empty);
+        }
         group.cards.forEach(card => {
             cardsContainer.appendChild(createKanbanCardEl(card));
         });
+
+        // Add data-status for CSS styling (dim archived/done)
+        col.setAttribute('data-status', group.value);
 
         // Drag-drop on column
         cardsContainer.addEventListener('dragover', e => {
@@ -395,6 +401,15 @@ function openCardModal(cardId) {
     document.getElementById('card-prop-points').textContent = card.points;
     document.getElementById('card-modal-description').value = card.description || '';
 
+    // Assignee dropdown
+    const assigneeSelect = document.getElementById('card-prop-assignee');
+    const settings = getSettings();
+    assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
+    settings.people.forEach(p => {
+        assigneeSelect.innerHTML += '<option value="' + escapeHtml(p) + '"' + (card.assignee === p ? ' selected' : '') + '>' + escapeHtml(p) + '</option>';
+    });
+    assigneeSelect.value = card.assignee || '';
+
     // Tags
     renderCardTags(card);
 
@@ -466,21 +481,46 @@ function renderCardTags(card) {
         span.innerHTML = escapeHtml(tag) + ' <span class="tag-remove" onclick="removeCardTag(\'' + escapeHtml(tag) + '\')">&times;</span>';
         container.appendChild(span);
     });
-    const addBtn = document.createElement('button');
-    addBtn.className = 'card-tag-add';
-    addBtn.textContent = '+ tag';
-    addBtn.onclick = () => {
-        const settings = getSettings();
-        const existing = card.tags || [];
-        const available = settings.tags.filter(t => !existing.includes(t));
-        if (available.length === 0) return;
-        const tag = available[0]; // Add first available
-        const tags = [...existing, tag];
-        updateCard(card.id, { tags });
-        const updated = getCardById(card.id);
-        renderCardTags(updated);
-    };
-    container.appendChild(addBtn);
+    const settings = getSettings();
+    const existing = card.tags || [];
+    const available = settings.tags.filter(t => !existing.includes(t));
+    if (available.length > 0) {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'card-tag-add';
+        addBtn.textContent = '+ tag';
+        addBtn.onclick = (e) => {
+            e.stopPropagation();
+            // Remove existing popover if any
+            const old = document.querySelector('.tag-popover');
+            if (old) old.remove();
+            // Create popover
+            const popover = document.createElement('div');
+            popover.className = 'tag-popover';
+            available.forEach(tag => {
+                const opt = document.createElement('div');
+                opt.className = 'tag-popover-item';
+                opt.textContent = tag;
+                opt.onclick = (ev) => {
+                    ev.stopPropagation();
+                    const tags = [...(card.tags || []), tag];
+                    updateCard(card.id, { tags });
+                    popover.remove();
+                    renderCardTags(getCardById(card.id));
+                };
+                popover.appendChild(opt);
+            });
+            addBtn.parentElement.appendChild(popover);
+            // Close popover on outside click
+            const close = (ev) => {
+                if (!popover.contains(ev.target)) {
+                    popover.remove();
+                    document.removeEventListener('click', close);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', close), 0);
+        };
+        container.appendChild(addBtn);
+    }
 }
 
 function removeCardTag(tag) {
@@ -530,9 +570,33 @@ function openParentCard(event) {
 
 function deleteCurrentCard() {
     if (!currentModalCardId) return;
-    if (!confirm('Delete this card?')) return;
+    const card = { ...getCardById(currentModalCardId) };
+    if (!card.id) return;
     deleteCard(currentModalCardId);
     closeCardModal();
+    showUndoToast('Card deleted', () => {
+        // Re-insert the exact card (preserving ID and points)
+        const cards = getCards();
+        cards.push(card);
+        saveCards(cards);
+        renderCurrentBoardView();
+    });
+}
+
+function showUndoToast(message, undoFn) {
+    // Remove existing toast
+    const existing = document.querySelector('.undo-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'undo-toast';
+    toast.innerHTML = '<span>' + escapeHtml(message) + '</span><button>Undo</button>';
+    toast.querySelector('button').onclick = () => {
+        undoFn();
+        toast.remove();
+    };
+    document.body.appendChild(toast);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
 }
 
 // ===== Calendar =====
@@ -580,6 +644,14 @@ function renderUnscheduledSidebar() {
     const container = document.getElementById('unscheduled-cards');
     const cards = getCards().filter(c => !c.scheduled && c.status !== 'Done' && c.status !== 'Archived');
     container.innerHTML = '';
+
+    if (cards.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.padding = '12px 4px';
+        empty.textContent = 'All tasks scheduled';
+        container.appendChild(empty);
+    }
 
     cards.forEach(card => {
         const el = document.createElement('div');
@@ -642,8 +714,9 @@ function renderMonthCalendar(subView) {
             if (subView === 'planning' || subView === 'sidebyside') {
                 const dayCards = cards.filter(c => c.scheduled === dateStr);
                 dayCards.slice(0, 3).forEach(c => {
+                    const timePrefix = c.scheduledTime ? formatTime(c.scheduledTime) + ' ' : '';
                     html += '<div class="month-day-card priority-' + c.priority + '" onclick="openCardModal(\'' + c.id + '\')">' +
-                        escapeHtml(c.title || 'Untitled') + '</div>';
+                        escapeHtml(timePrefix + (c.title || 'Untitled')) + '</div>';
                 });
                 if (dayCards.length > 3) html += '<div class="month-day-card" style="color:#8e8e93">+' + (dayCards.length - 3) + ' more</div>';
             }
@@ -852,17 +925,9 @@ function renderSideBySideCalendar() {
             '</div>' +
         '</div>';
 
-    // Render each side into temporary containers then move
     const planningTarget = document.getElementById('sidebyside-planning');
     const actualTarget = document.getElementById('sidebyside-actual');
 
-    // Planning side
-    const planContainer = document.createElement('div');
-    planContainer.id = 'calendar-grid-container';
-    document.body.appendChild(planContainer);
-    const savedContainer = document.getElementById('calendar-grid-container');
-
-    // Simplified: render month views inline for side-by-side
     planningTarget.innerHTML = renderMonthGridHTML('planning');
     actualTarget.innerHTML = renderMonthGridHTML('actual');
 
@@ -970,8 +1035,7 @@ function getCalendarDays() {
 let timerInterval = null;
 let timerRemaining = 0; // seconds
 let timerTotal = 0;
-let timerRunning = false;
-let timerPaused = false;
+let timerState = 'idle'; // 'idle', 'running', 'paused', 'break'
 let timerType = 'focus'; // 'focus', 'shortBreak', 'longBreak'
 let sessionCount = 0;
 let currentFocusCardId = null;
@@ -1003,12 +1067,22 @@ function selectFocusTask() {
     }
 }
 
+function onQuickTaskInput() {
+    const quickTask = document.getElementById('focus-quick-task').value.trim();
+    if (quickTask) {
+        document.getElementById('focus-task-select').selectedIndex = 0;
+        currentFocusCardId = null;
+        currentFocusTaskName = quickTask;
+        document.getElementById('focus-task-name').textContent = quickTask;
+    }
+}
+
 function toggleTimer() {
-    if (!timerRunning && !timerPaused) {
+    if (timerState === 'idle') {
         startTimer();
-    } else if (timerRunning && !timerPaused) {
+    } else if (timerState === 'running' || timerState === 'break') {
         pauseTimer();
-    } else if (timerPaused) {
+    } else if (timerState === 'paused') {
         resumeTimer();
     }
 }
@@ -1036,8 +1110,7 @@ function startTimer() {
     timerType = 'focus';
     timerTotal = settings.focusDuration * 60;
     timerRemaining = timerTotal;
-    timerRunning = true;
-    timerPaused = false;
+    timerState = 'running';
     timerStartTime = new Date();
     skipBreakVisible = false;
 
@@ -1048,33 +1121,39 @@ function startTimer() {
 }
 
 function pauseTimer() {
-    timerPaused = true;
-    timerRunning = true;
+    timerState = 'paused';
     clearInterval(timerInterval);
     updateTimerButtons();
 }
 
 function resumeTimer() {
-    timerPaused = false;
-    timerRunning = true;
+    timerState = 'running';
     timerInterval = setInterval(tickTimer, 1000);
     updateTimerButtons();
 }
 
 function stopTimer() {
-    const wasRunning = timerRunning;
+    const wasActive = timerState !== 'idle';
+
+    // Confirm if significant time elapsed on a focus session
+    if (wasActive && timerType === 'focus') {
+        const elapsed = timerTotal - timerRemaining;
+        if (elapsed > 60 && !confirm('Stop this focus session? Progress will be logged.')) {
+            return;
+        }
+    }
+
     clearInterval(timerInterval);
-    timerRunning = false;
-    timerPaused = false;
 
     // Log partial session if it was a focus session
-    if (wasRunning && timerType === 'focus') {
+    if (wasActive && timerType === 'focus') {
         const elapsed = timerTotal - timerRemaining;
-        if (elapsed > 60) { // Only log if > 1 min
+        if (elapsed > 60) {
             logFocusSession(Math.round(elapsed / 60));
         }
     }
 
+    timerState = 'idle';
     resetTimerDisplay();
     updateTimerButtons();
 }
@@ -1106,6 +1185,7 @@ function tickTimer() {
             startBreakInBackground();
         } else {
             // Break finished
+            timerState = 'idle';
             timerType = 'focus';
             resetTimerDisplay();
             updateTimerButtons();
@@ -1142,14 +1222,14 @@ function updateTimerButtons() {
     const ext5 = document.getElementById('extend-5-btn');
     const skipBtn = document.getElementById('skip-break-btn');
 
-    if (!timerRunning && !timerPaused) {
+    if (timerState === 'idle') {
         mainBtn.textContent = 'Start';
         mainBtn.className = 'timer-btn timer-start';
         stopBtn.style.display = 'none';
         ext1.style.display = 'none';
         ext5.style.display = 'none';
         skipBtn.style.display = 'none';
-    } else if (timerPaused) {
+    } else if (timerState === 'paused') {
         mainBtn.textContent = 'Resume';
         mainBtn.className = 'timer-btn timer-start paused';
         stopBtn.style.display = 'inline-block';
@@ -1189,8 +1269,7 @@ function startBreakInBackground() {
     timerType = isLongBreak ? 'longBreak' : 'shortBreak';
     timerTotal = (isLongBreak ? settings.longBreak : settings.shortBreak) * 60;
     timerRemaining = timerTotal;
-    timerRunning = true;
-    timerPaused = false;
+    timerState = 'break';
 
     updateTimerDisplay();
     updateTimerButtons();
@@ -1208,7 +1287,7 @@ function startBreakInBackground() {
         }
         if (timerRemaining <= 0) {
             clearInterval(timerInterval);
-            timerRunning = false;
+            timerState = 'idle';
             timerType = 'focus';
             resetTimerDisplay();
             updateTimerButtons();
@@ -1218,8 +1297,8 @@ function startBreakInBackground() {
 
 function skipBreak() {
     clearInterval(timerInterval);
+    timerState = 'idle';
     timerType = 'focus';
-    timerRunning = false;
     resetTimerDisplay();
     updateTimerButtons();
 }
@@ -1368,6 +1447,12 @@ function renderFocusStats() {
     // Recent sessions
     const list = document.getElementById('focus-recent-list');
     list.innerHTML = '';
+    if (log.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'empty-state';
+        empty.textContent = 'No sessions yet. Select a task and start focusing!';
+        list.appendChild(empty);
+    }
     log.slice(-10).reverse().forEach(entry => {
         const li = document.createElement('li');
         li.className = 'focus-recent-item';
@@ -1392,6 +1477,8 @@ let cachedSlices = [];
 let cachedSlicesSeed = '';
 let isFreeSpin = false;
 
+let _wheelResizeListenerAdded = false;
+
 function initWheel() {
     const savedCost = localStorage.getItem('wheelSpinCost');
     if (savedCost) {
@@ -1401,11 +1488,14 @@ function initWheel() {
     updateWheelConfigDropdown();
     updateFreeSpinUI();
 
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => drawWheel(), 200);
-    });
+    if (!_wheelResizeListenerAdded) {
+        _wheelResizeListenerAdded = true;
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => drawWheel(), 200);
+        });
+    }
 }
 
 function updateSpinCost() {
@@ -1522,13 +1612,33 @@ function drawWheel() {
         angle = endAngle;
     });
 
+    // Outer ring decoration
     ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.1, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#2c2c2e';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Tick marks around the edge
+    for (let i = 0; i < totalSlices; i++) {
+        const tickAngle = -Math.PI / 2 + i * sliceAngle;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(tickAngle) * (r - 6), cy + Math.sin(tickAngle) * (r - 6));
+        ctx.lineTo(cx + Math.cos(tickAngle) * r, cy + Math.sin(tickAngle) * r);
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    // Center hub
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.12, 0, 2 * Math.PI);
+    ctx.fillStyle = '#2c2c2e';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.08, 0, 2 * Math.PI);
     ctx.fillStyle = '#fff';
     ctx.fill();
-    ctx.strokeStyle = '#e5e5ea';
-    ctx.lineWidth = 2;
-    ctx.stroke();
 }
 
 function spinWheel() {
@@ -1650,9 +1760,9 @@ function renderWheelItems() {
                 '<span class="wheel-item-slices">(' + sliceCount + ' slice' + (sliceCount !== 1 ? 's' : '') + ')</span>' +
             '</div>' +
             '<div class="wheel-item-actions">' +
-                '<button onclick="adjustCost(' + index + ', 1)">-</button>' +
-                '<button onclick="adjustCost(' + index + ', -1)">+</button>' +
-                '<button class="wheel-item-remove" onclick="removeWheelItem(' + index + ')">&times;</button>' +
+                '<button onclick="adjustCost(' + index + ', 1)" title="More likely (halve cost)">&#9650;</button>' +
+                '<button onclick="adjustCost(' + index + ', -1)" title="Less likely (double cost)">&#9660;</button>' +
+                '<button class="wheel-item-remove" onclick="removeWheelItem(' + index + ')" title="Remove">&times;</button>' +
             '</div>';
         list.appendChild(li);
     });
@@ -1821,15 +1931,24 @@ function removeTag(idx) {
     renderSettingsList('settings-tags-list', settings.tags, 'removeTag');
 }
 
+function clamp(val, min, max) { return Math.min(max, Math.max(min, val)); }
+
 function saveFocusSettings() {
     const settings = getFocusSettings();
-    settings.focusDuration = parseInt(document.getElementById('settings-focus-duration').value) || 25;
-    settings.shortBreak = parseInt(document.getElementById('settings-short-break').value) || 5;
-    settings.longBreak = parseInt(document.getElementById('settings-long-break').value) || 15;
-    settings.longBreakInterval = parseInt(document.getElementById('settings-break-interval').value) || 4;
-    settings.freeSpinsPerReward = parseInt(document.getElementById('settings-spins-per-reward').value) || 1;
-    settings.pomodorosPerFreeSpin = parseInt(document.getElementById('settings-pomodoros-per-spin').value) || 4;
+    settings.focusDuration = clamp(parseInt(document.getElementById('settings-focus-duration').value) || 25, 1, 120);
+    settings.shortBreak = clamp(parseInt(document.getElementById('settings-short-break').value) || 5, 1, 30);
+    settings.longBreak = clamp(parseInt(document.getElementById('settings-long-break').value) || 15, 1, 60);
+    settings.longBreakInterval = clamp(parseInt(document.getElementById('settings-break-interval').value) || 4, 1, 12);
+    settings.freeSpinsPerReward = clamp(parseInt(document.getElementById('settings-spins-per-reward').value) || 1, 1, 10);
+    settings.pomodorosPerFreeSpin = clamp(parseInt(document.getElementById('settings-pomodoros-per-spin').value) || 4, 1, 20);
     saveFocusSettingsData(settings);
+    // Update input fields with clamped values
+    document.getElementById('settings-focus-duration').value = settings.focusDuration;
+    document.getElementById('settings-short-break').value = settings.shortBreak;
+    document.getElementById('settings-long-break').value = settings.longBreak;
+    document.getElementById('settings-break-interval').value = settings.longBreakInterval;
+    document.getElementById('settings-spins-per-reward').value = settings.freeSpinsPerReward;
+    document.getElementById('settings-pomodoros-per-spin').value = settings.pomodorosPerFreeSpin;
 }
 
 function exportData() {
@@ -1889,4 +2008,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderFocusStats();
     updateSessionCounter();
     resetTimerDisplay();
+
+    // Spacebar shortcut for timer toggle on Focus tab
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && document.getElementById('focus').style.display === 'block') {
+            const active = document.activeElement;
+            const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+            if (!isInput) {
+                e.preventDefault();
+                toggleTimer();
+            }
+        }
+    });
 });
