@@ -22,14 +22,6 @@ function formatTime(timeStr) {
     return hour + ':' + String(m).padStart(2, '0') + ' ' + ampm;
 }
 
-function isToday(dateStr) {
-    const today = new Date();
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.getDate() === today.getDate() &&
-           d.getMonth() === today.getMonth() &&
-           d.getFullYear() === today.getFullYear();
-}
-
 function todayStr() {
     return dateToStr(new Date());
 }
@@ -578,12 +570,15 @@ function openParentCard(event) {
 
 function deleteCurrentCard() {
     if (!currentModalCardId) return;
-    const card = getCardById(currentModalCardId);
-    if (!card) return;
+    const card = { ...getCardById(currentModalCardId) };
+    if (!card.id) return;
     deleteCard(currentModalCardId);
     closeCardModal();
     showUndoToast('Card deleted', () => {
-        createCard({ ...card, id: card.id });
+        // Re-insert the exact card (preserving ID and points)
+        const cards = getCards();
+        cards.push(card);
+        saveCards(cards);
         renderCurrentBoardView();
     });
 }
@@ -649,6 +644,14 @@ function renderUnscheduledSidebar() {
     const container = document.getElementById('unscheduled-cards');
     const cards = getCards().filter(c => !c.scheduled && c.status !== 'Done' && c.status !== 'Archived');
     container.innerHTML = '';
+
+    if (cards.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.padding = '12px 4px';
+        empty.textContent = 'All tasks scheduled';
+        container.appendChild(empty);
+    }
 
     cards.forEach(card => {
         const el = document.createElement('div');
