@@ -104,7 +104,7 @@
                 <option value="" disabled selected>Select a task...</option>
             </select>
             <span class="focus-or">or</span>
-            <input type="text" id="focus-quick-task" placeholder="Quick task name...">
+            <input type="text" id="focus-quick-task" placeholder="Quick task name..." oninput="onQuickTaskInput()">
         </div>
 
         <!-- Timer Display -->
@@ -255,6 +255,12 @@
                     <div class="card-prop">
                         <label>Time</label>
                         <input type="time" id="card-prop-scheduledTime" onchange="updateCardProp('scheduledTime', this.value)">
+                    </div>
+                    <div class="card-prop">
+                        <label>Assignee</label>
+                        <select id="card-prop-assignee" onchange="updateCardProp('assignee', this.value)">
+                            <option value="">Unassigned</option>
+                        </select>
                     </div>
                     <div class="card-prop">
                         <label>Tags</label>

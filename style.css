@@ -368,7 +368,7 @@ body {
 }
 
 .month-day-card {
-    font-size: 10px;
+    font-size: 11px;
     padding: 2px 4px;
     margin: 1px 0;
     border-radius: 3px;
@@ -601,7 +601,7 @@ body {
 .card-properties {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 12px;
 }
 
 .card-prop {
@@ -611,7 +611,7 @@ body {
 }
 
 .card-prop label {
-    font-size: 12px;
+    font-size: 13px;
     color: #8e8e93;
     min-width: 60px;
     flex-shrink: 0;
@@ -637,6 +637,7 @@ body {
     flex-wrap: wrap;
     gap: 4px;
     flex: 1;
+    position: relative;
 }
 
 .card-tag {
@@ -665,6 +666,28 @@ body {
     cursor: pointer;
 }
 .card-tag-add:hover { border-color: #5B9BD5; color: #5B9BD5; background: none; }
+
+.tag-popover {
+    position: absolute;
+    background: white;
+    border: 1px solid #e5e5ea;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    z-index: 10;
+    min-width: 120px;
+    max-height: 160px;
+    overflow-y: auto;
+    margin-top: 4px;
+}
+.tag-popover-item {
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #1d1d1f;
+}
+.tag-popover-item:hover { background: #f2f2f7; }
+.tag-popover-item:first-child { border-radius: 8px 8px 0 0; }
+.tag-popover-item:last-child { border-radius: 0 0 8px 8px; }
 
 .card-parent-link {
     font-size: 12px;
@@ -779,8 +802,8 @@ body {
 
 .timer-container {
     position: relative;
-    width: 220px;
-    height: 220px;
+    width: 280px;
+    height: 280px;
     margin: 30px auto 10px;
 }
 
@@ -813,7 +836,7 @@ body {
 }
 
 .timer-time {
-    font-size: 40px;
+    font-size: 48px;
     font-weight: 300;
     letter-spacing: 2px;
     color: #1d1d1f;
@@ -1395,12 +1418,12 @@ body {
 }
 
 @media (max-width: 480px) {
-    .view-bar { padding: 8px 10px; }
-    .view-bar-left, .view-bar-right { width: 100%; }
-    .tab-button { padding: 12px 12px; font-size: 12px; }
+    .view-bar { padding: 8px 10px; flex-direction: column; align-items: stretch; }
+    .view-bar-left, .view-bar-right { width: 100%; justify-content: center; }
+    .tab-button { padding: 14px 16px; font-size: 12px; min-height: 44px; }
     .kanban-column { min-width: 200px; width: 200px; }
-    .timer-container { width: 180px; height: 180px; }
-    .timer-time { font-size: 32px; }
+    .timer-container { width: 220px; height: 220px; }
+    .timer-time { font-size: 36px; }
     .wheel-add-section { flex-wrap: wrap; }
     .wheel-add-section input[type="text"] { flex: 1 1 100%; }
     .wheel-config-section { flex-direction: column; }
@@ -1408,6 +1431,70 @@ body {
     .focus-task-selector { flex-direction: column; }
     .focus-or { display: none; }
 }
+
+/* ===== Focus Visible ===== */
+:focus-visible {
+    outline: 2px solid #5B9BD5;
+    outline-offset: 2px;
+}
+button:focus-visible { outline-offset: 1px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid #5B9BD5;
+    outline-offset: 0;
+    border-color: #5B9BD5;
+}
+
+/* ===== Free Spin Badge Pulse ===== */
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+.free-spin-badge {
+    animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* ===== Archived Column Dim ===== */
+.kanban-column[data-status="Archived"],
+.kanban-column[data-status="Done"] {
+    opacity: 0.7;
+}
+
+/* ===== Empty States ===== */
+.empty-state {
+    text-align: center;
+    padding: 24px 16px;
+    color: #8e8e93;
+    font-size: 13px;
+}
+
+/* ===== Undo Toast ===== */
+.undo-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c2c2e;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    z-index: 300;
+    animation: modalSlideIn 0.2s ease;
+}
+.undo-toast button {
+    background: none;
+    border: none;
+    color: #5B9BD5;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.undo-toast button:hover { text-decoration: underline; background: none; }
 
 /* ===== Utility ===== */
 .hidden { display: none !important; }
