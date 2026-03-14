@@ -167,6 +167,14 @@ function saveFocusLog(log) {
     localStorage.setItem('focusLog', JSON.stringify(log));
 }
 
+function saveClaudeApiKey() {
+    const val = document.getElementById('settings-claude-api-key').value.trim();
+    if (val === '(saved)') return;
+    const s = getSettings();
+    s.claudeApiKey = val;
+    saveSettings(s);
+}
+
 // ===== Navigation =====
 
 function openTab(event, tabId) {
@@ -1464,6 +1472,148 @@ function renderFocusStats() {
     });
 }
 
+// ===== End of Day Summary =====
+
+function compileDaySummaryData() {
+    const today = todayStr();
+    const planned = getCards().filter(c => c.scheduled === today && c.status !== 'Archived');
+    const actual = getFocusLog().filter(l => l.date === today);
+    const plannedDone = planned.filter(c => c.status === 'Done');
+    const plannedNotDone = planned.filter(c => c.status !== 'Done');
+    const totalMin = actual.reduce((s, l) => s + l.duration, 0);
+    return {
+        date: today,
+        planned, plannedDone, plannedNotDone, actual,
+        totalMin,
+        focusSummary: Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'm',
+        sessionCount: actual.length,
+        workedOnTasks: [...new Set(actual.map(l => l.taskName))]
+    };
+}
+
+function buildClaudePrompt(data) {
+    const plannedLines = data.planned.length === 0
+        ? 'Nothing scheduled for today.'
+        : data.planned.map(c =>
+            '- ' + (c.title || 'Untitled') + ' [' + c.status + ']' +
+            (c.estimatedTime ? ', est. ' + c.estimatedTime : '')
+          ).join('\n');
+
+    const actualLines = data.workedOnTasks.length === 0
+        ? 'No focus sessions recorded today.'
+        : data.workedOnTasks.map(name => {
+            const sessions = data.actual.filter(l => l.taskName === name);
+            const mins = sessions.reduce((s, l) => s + l.duration, 0);
+            const notes = sessions.filter(l => l.accomplishment && l.accomplishment.trim())
+                .map(l => '    ' + l.accomplishment.trim()).join('\n');
+            return '- ' + name + ' (' + mins + ' min)' + (notes ? '\n' + notes : '');
+          }).join('\n');
+
+    return 'You are a supportive productivity coach reviewing someone\'s workday.\n\n' +
+        'DATE: ' + data.date + '\n\n' +
+        'PLANNED TASKS (scheduled for today):\n' + plannedLines + '\n\n' +
+        'ACTUAL FOCUS SESSIONS (' + data.sessionCount + ' sessions, ' + data.focusSummary + ' total):\n' + actualLines + '\n\n' +
+        'COMPLETED AS PLANNED: ' + data.plannedDone.length + '/' + data.planned.length + ' scheduled tasks now have status "Done".\n' +
+        'PLANNED BUT UNFINISHED: ' + (data.plannedNotDone.map(c => c.title || 'Untitled').join(', ') || 'None') + '\n\n' +
+        'Please write a brief, warm end-of-day reflection (3-5 short paragraphs) that:\n' +
+        '1. Acknowledges what was accomplished today\n' +
+        '2. Notes any gap between what was planned vs. what got done, without judgment\n' +
+        '3. Identifies one specific positive observation about the day\'s work\n' +
+        '4. Offers one constructive suggestion for tomorrow based on today\'s patterns\n' +
+        'Keep the tone encouraging and conversational, not clinical.';
+}
+
+async function callClaudeApi(prompt) {
+    const key = (getSettings().claudeApiKey || '').trim();
+    if (!key) throw new Error('No API key configured. Add your Anthropic API key in Settings.');
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+            model: 'claude-haiku-4-5',
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: prompt }]
+        })
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error('API error ' + response.status + ': ' + ((err.error && err.error.message) || response.statusText));
+    }
+    return (await response.json()).content[0].text;
+}
+
+async function generateEndOfDaySummary() {
+    const data = compileDaySummaryData();
+    showEodModal(data);
+    try {
+        renderEodSummaryResponse(await callClaudeApi(buildClaudePrompt(data)));
+    } catch (err) {
+        renderEodSummaryError(err.message);
+    }
+}
+
+function showEodModal(data) {
+    document.getElementById('eod-date-label').textContent =
+        new Date(data.date + 'T00:00:00').toLocaleDateString('en-US',
+            { weekday: 'long', month: 'long', day: 'numeric' });
+
+    const pl = document.getElementById('eod-planned-list');
+    if (data.planned.length === 0) {
+        pl.innerHTML = '<li class="eod-empty">Nothing scheduled</li>';
+    } else {
+        pl.innerHTML = data.planned.map(c =>
+            '<li class="eod-list-item ' + (c.status === 'Done' ? 'eod-done' : 'eod-pending') + '">' +
+            (c.status === 'Done' ? '✓ ' : '○ ') + escapeHtml(c.title || 'Untitled') + '</li>'
+        ).join('');
+    }
+
+    const al = document.getElementById('eod-actual-list');
+    if (data.workedOnTasks.length === 0) {
+        al.innerHTML = '<li class="eod-empty">No sessions recorded</li>';
+    } else {
+        al.innerHTML = data.workedOnTasks.map(name => {
+            const mins = data.actual.filter(l => l.taskName === name).reduce((s, l) => s + l.duration, 0);
+            return '<li class="eod-list-item">' + escapeHtml(name) + ' (' + mins + 'm)</li>';
+        }).join('');
+    }
+
+    document.getElementById('eod-stats-bar').innerHTML =
+        '<span>' + data.plannedDone.length + '/' + data.planned.length + ' planned tasks done</span>' +
+        '<span class="eod-stat-sep">|</span>' +
+        '<span>' + data.focusSummary + ' focus time</span>' +
+        '<span class="eod-stat-sep">|</span>' +
+        '<span>' + data.sessionCount + ' sessions</span>';
+
+    document.getElementById('eod-loading').style.display = 'flex';
+    document.getElementById('eod-ai-text').style.display = 'none';
+    document.getElementById('eod-error').style.display = 'none';
+    document.getElementById('eod-summary-modal').style.display = 'block';
+}
+
+function renderEodSummaryResponse(text) {
+    document.getElementById('eod-loading').style.display = 'none';
+    const el = document.getElementById('eod-ai-text');
+    el.innerHTML = text.split('\n\n').filter(p => p.trim())
+        .map(p => '<p>' + escapeHtml(p.trim()) + '</p>').join('');
+    el.style.display = 'block';
+}
+
+function renderEodSummaryError(msg) {
+    document.getElementById('eod-loading').style.display = 'none';
+    const el = document.getElementById('eod-error');
+    el.textContent = 'Error: ' + msg;
+    el.style.display = 'block';
+}
+
+function closeEodModal() {
+    document.getElementById('eod-summary-modal').style.display = 'none';
+}
+
 // ===== Reward Wheel =====
 
 const WHEEL_COLORS = [
@@ -1874,6 +2024,9 @@ function openSettings() {
     document.getElementById('settings-break-interval').value = focusSettings.longBreakInterval;
     document.getElementById('settings-spins-per-reward').value = focusSettings.freeSpinsPerReward;
     document.getElementById('settings-pomodoros-per-spin').value = focusSettings.pomodorosPerFreeSpin;
+
+    document.getElementById('settings-claude-api-key').value =
+        settings.claudeApiKey ? '(saved)' : '';
 
     document.getElementById('settings-modal').style.display = 'block';
 }

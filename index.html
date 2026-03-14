@@ -147,6 +147,12 @@
                 <!-- Rendered by JS -->
             </ul>
         </div>
+
+        <!-- End of Day Summary -->
+        <div class="focus-eod-section">
+            <button class="eod-summary-btn" onclick="generateEndOfDaySummary()">End of Day Summary</button>
+            <p class="eod-hint">Review today vs. plan with AI reflection</p>
+        </div>
     </div>
 
     <!-- ===== Tab: Reward Wheel ===== -->
@@ -367,6 +373,18 @@
             </div>
 
             <div class="settings-section">
+                <h3>Claude AI Integration</h3>
+                <p class="settings-help-text">
+                    Used for End of Day Summary. Your API key is stored locally in your browser.
+                    Get one at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>.
+                </p>
+                <div class="settings-inline">
+                    <input type="password" id="settings-claude-api-key"
+                        placeholder="sk-ant-..." onchange="saveClaudeApiKey()">
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <h3>Data</h3>
                 <div class="settings-data-actions">
                     <button onclick="exportData()">Export All Data</button>
@@ -418,6 +436,40 @@
             </div>
 
             <button id="completion-skip-break" class="timer-btn timer-skip" onclick="skipBreakFromPopup()">Skip Break</button>
+        </div>
+    </div>
+
+    <!-- ===== End of Day Summary Modal ===== -->
+    <div id="eod-summary-modal" class="modal" onclick="if(event.target===this)closeEodModal()">
+        <div class="modal-content eod-modal-content">
+            <button class="modal-close" onclick="closeEodModal()">&times;</button>
+            <h2>End of Day Summary</h2>
+            <p id="eod-date-label" class="eod-date-label"></p>
+
+            <div class="eod-data-section">
+                <div class="eod-column">
+                    <h3>Planned Today</h3>
+                    <ul id="eod-planned-list" class="eod-list"></ul>
+                </div>
+                <div class="eod-column">
+                    <h3>Actual Focus</h3>
+                    <ul id="eod-actual-list" class="eod-list"></ul>
+                </div>
+            </div>
+
+            <div id="eod-stats-bar" class="eod-stats-bar"></div>
+
+            <div class="eod-ai-section">
+                <h3>AI Reflection</h3>
+                <div id="eod-ai-response" class="eod-ai-response">
+                    <div id="eod-loading" class="eod-loading">
+                        <div class="eod-spinner"></div>
+                        <span>Generating reflection...</span>
+                    </div>
+                    <div id="eod-ai-text" class="eod-ai-text" style="display:none;"></div>
+                    <div id="eod-error" class="eod-error" style="display:none;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
