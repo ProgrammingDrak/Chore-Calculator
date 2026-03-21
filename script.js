@@ -2,7 +2,30 @@
 // Bounty Tracker - Main Application Script
 // ===================================================================
 
+window.onerror = function(msg, src, line, col, err) {
+    console.error('Uncaught error:', msg, 'at', src + ':' + line + ':' + col, err);
+};
+
 // ===== Utilities =====
+
+function safeParse(jsonString, fallback) {
+    if (!jsonString) return fallback;
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        console.error('Failed to parse stored data:', e);
+        return fallback;
+    }
+}
+
+function safeSetItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.error('localStorage write failed for key "' + key + '":', e);
+        alert('Storage is full. Please export your data and clear old entries.');
+    }
+}
 
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -72,14 +95,14 @@ let _cardsCache = null;
 
 function getCards() {
     if (_cardsCache === null) {
-        _cardsCache = JSON.parse(localStorage.getItem('cards')) || [];
+        _cardsCache = safeParse(localStorage.getItem('cards'), []);
     }
     return _cardsCache;
 }
 
 function saveCards(cards) {
     _cardsCache = cards;
-    localStorage.setItem('cards', JSON.stringify(cards));
+    safeSetItem('cards', JSON.stringify(cards));
 }
 
 function getCardById(id) {
@@ -130,20 +153,20 @@ function createCard(overrides) {
 }
 
 function getSettings() {
-    return JSON.parse(localStorage.getItem('appSettings')) || {
+    return safeParse(localStorage.getItem('appSettings'), {
         people: ['Drake'],
         tags: ['chore', 'daily', 'weekly', 'outdoor'],
         kanbanGroupBy: 'status',
         visibleCardProperties: ['priority', 'dueDate']
-    };
+    });
 }
 
 function saveSettings(settings) {
-    localStorage.setItem('appSettings', JSON.stringify(settings));
+    safeSetItem('appSettings', JSON.stringify(settings));
 }
 
 function getFocusSettings() {
-    return JSON.parse(localStorage.getItem('focusSettings')) || {
+    return safeParse(localStorage.getItem('focusSettings'), {
         focusDuration: 25,
         shortBreak: 5,
         longBreak: 15,
@@ -152,19 +175,19 @@ function getFocusSettings() {
         pomodorosPerFreeSpin: 4,
         completedPomodoroCount: 0,
         freeSpinsAvailable: 0
-    };
+    });
 }
 
 function saveFocusSettingsData(settings) {
-    localStorage.setItem('focusSettings', JSON.stringify(settings));
+    safeSetItem('focusSettings', JSON.stringify(settings));
 }
 
 function getFocusLog() {
-    return JSON.parse(localStorage.getItem('focusLog')) || [];
+    return safeParse(localStorage.getItem('focusLog'), []);
 }
 
 function saveFocusLog(log) {
-    localStorage.setItem('focusLog', JSON.stringify(log));
+    safeSetItem('focusLog', JSON.stringify(log));
 }
 
 // ===== Navigation =====
@@ -282,8 +305,10 @@ function renderKanban() {
             '<div class="kanban-column-cards" data-group-value="' + escapeHtml(group.value) + '" data-group-by="' + groupBy + '">' +
             '</div>' +
             '<div class="kanban-add-card">' +
-                '<button onclick="quickAddCard(\'' + escapeHtml(group.value) + '\', \'' + groupBy + '\')">+ Add Card</button>' +
+                '<button class="kanban-add-btn">+ Add Card</button>' +
             '</div>';
+
+        col.querySelector('.kanban-add-btn').addEventListener('click', () => quickAddCard(group.value, groupBy));
 
         const cardsContainer = col.querySelector('.kanban-column-cards');
         if (group.cards.length === 0) {
@@ -311,9 +336,10 @@ function renderKanban() {
             e.preventDefault();
             cardsContainer.classList.remove('drag-over');
             const cardId = e.dataTransfer.getData('text/plain');
+            if (!cardId || !getCardById(cardId)) return;
             const groupByProp = cardsContainer.dataset.groupBy;
             const groupValue = cardsContainer.dataset.groupValue;
-            if (cardId && groupByProp) {
+            if (groupByProp) {
                 updateCard(cardId, { [groupByProp]: groupValue });
                 renderKanban();
             }
@@ -478,7 +504,12 @@ function renderCardTags(card) {
     (card.tags || []).forEach(tag => {
         const span = document.createElement('span');
         span.className = 'card-tag';
-        span.innerHTML = escapeHtml(tag) + ' <span class="tag-remove" onclick="removeCardTag(\'' + escapeHtml(tag) + '\')">&times;</span>';
+        span.textContent = tag + ' ';
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'tag-remove';
+        removeBtn.textContent = '\u00d7';
+        removeBtn.addEventListener('click', () => removeCardTag(tag));
+        span.appendChild(removeBtn);
         container.appendChild(span);
     });
     const settings = getSettings();
@@ -715,7 +746,7 @@ function renderMonthCalendar(subView) {
                 const dayCards = cards.filter(c => c.scheduled === dateStr);
                 dayCards.slice(0, 3).forEach(c => {
                     const timePrefix = c.scheduledTime ? formatTime(c.scheduledTime) + ' ' : '';
-                    html += '<div class="month-day-card priority-' + c.priority + '" onclick="openCardModal(\'' + c.id + '\')">' +
+                    html += '<div class="month-day-card priority-' + c.priority + '" data-card-id="' + c.id + '">' +
                         escapeHtml(timePrefix + (c.title || 'Untitled')) + '</div>';
                 });
                 if (dayCards.length > 3) html += '<div class="month-day-card" style="color:#8e8e93">+' + (dayCards.length - 3) + ' more</div>';
@@ -742,6 +773,11 @@ function renderMonthCalendar(subView) {
     html += '</div>';
     container.innerHTML = html;
 
+    // Click events on calendar cards
+    container.querySelectorAll('.month-day-card[data-card-id]').forEach(el => {
+        el.addEventListener('click', () => openCardModal(el.dataset.cardId));
+    });
+
     // Drop events on month days
     container.querySelectorAll('.month-grid-day').forEach(dayEl => {
         dayEl.addEventListener('dragover', e => { e.preventDefault(); dayEl.classList.add('drag-over'); });
@@ -750,8 +786,9 @@ function renderMonthCalendar(subView) {
             e.preventDefault();
             dayEl.classList.remove('drag-over');
             const cardId = e.dataTransfer.getData('application/card-id');
+            if (!cardId || !getCardById(cardId)) return;
             const date = dayEl.dataset.date;
-            if (cardId && date) {
+            if (date) {
                 updateCard(cardId, { scheduled: date });
                 renderCalendar();
             }
@@ -788,7 +825,7 @@ function renderHourlyCalendar(subView) {
         const dayCards = cards.filter(c => c.scheduled === day && !c.scheduledTime);
         html += '<div class="allday-row" data-date="' + day + '">';
         dayCards.forEach(c => {
-            html += '<div class="allday-card" onclick="openCardModal(\'' + c.id + '\')">' + escapeHtml(c.title || 'Untitled') + '</div>';
+            html += '<div class="allday-card" data-card-id="' + c.id + '">' + escapeHtml(c.title || 'Untitled') + '</div>';
         });
         html += '</div>';
     });
@@ -805,6 +842,11 @@ function renderHourlyCalendar(subView) {
 
     html += '</div>';
     container.innerHTML = html;
+
+    // Click events on allday/calendar cards
+    container.querySelectorAll('.allday-card[data-card-id]').forEach(el => {
+        el.addEventListener('click', () => openCardModal(el.dataset.cardId));
+    });
 
     // Place events on grid
     const grid = container.querySelector('.hourly-grid');
@@ -869,7 +911,7 @@ function renderHourlyCalendar(subView) {
             e.preventDefault();
             cell.classList.remove('drag-over');
             const cardId = e.dataTransfer.getData('application/card-id');
-            if (cardId) {
+            if (cardId && getCardById(cardId)) {
                 const date = cell.dataset.date;
                 const hour = cell.dataset.hour;
                 updateCard(cardId, {
@@ -931,6 +973,11 @@ function renderSideBySideCalendar() {
     planningTarget.innerHTML = renderMonthGridHTML('planning');
     actualTarget.innerHTML = renderMonthGridHTML('actual');
 
+    // Click events on calendar cards in both panels
+    container.querySelectorAll('.month-day-card[data-card-id]').forEach(el => {
+        el.addEventListener('click', () => openCardModal(el.dataset.cardId));
+    });
+
     // Add drop handlers to planning side
     planningTarget.querySelectorAll('.month-grid-day').forEach(dayEl => {
         dayEl.addEventListener('dragover', e => { e.preventDefault(); dayEl.classList.add('drag-over'); });
@@ -939,8 +986,9 @@ function renderSideBySideCalendar() {
             e.preventDefault();
             dayEl.classList.remove('drag-over');
             const cardId = e.dataTransfer.getData('application/card-id');
+            if (!cardId || !getCardById(cardId)) return;
             const date = dayEl.dataset.date;
-            if (cardId && date) {
+            if (date) {
                 updateCard(cardId, { scheduled: date });
                 renderCalendar();
             }
@@ -991,7 +1039,7 @@ function renderMonthGridHTML(subView) {
             if (subView === 'planning') {
                 const dayCards = cards.filter(c => c.scheduled === dateStr);
                 dayCards.slice(0, 2).forEach(c => {
-                    html += '<div class="month-day-card priority-' + c.priority + '" onclick="openCardModal(\'' + c.id + '\')">' +
+                    html += '<div class="month-day-card priority-' + c.priority + '" data-card-id="' + c.id + '">' +
                         escapeHtml(c.title || '?') + '</div>';
                 });
                 if (dayCards.length > 2) html += '<div class="month-day-card" style="color:#8e8e93;font-size:9px">+' + (dayCards.length - 2) + '</div>';
@@ -1500,7 +1548,7 @@ function initWheel() {
 
 function updateSpinCost() {
     const cost = parseInt(document.getElementById('spin-cost').value) || 100;
-    localStorage.setItem('wheelSpinCost', cost);
+    safeSetItem('wheelSpinCost', cost);
     renderWheelItems();
 }
 
@@ -1509,11 +1557,11 @@ function getSpinCost() {
 }
 
 function getWheelItems() {
-    return JSON.parse(localStorage.getItem('wheelItems')) || [];
+    return safeParse(localStorage.getItem('wheelItems'), []);
 }
 
 function saveWheelItems(items) {
-    localStorage.setItem('wheelItems', JSON.stringify(items));
+    safeSetItem('wheelItems', JSON.stringify(items));
 }
 
 function buildExpandedSlices(items) {
@@ -1760,10 +1808,13 @@ function renderWheelItems() {
                 '<span class="wheel-item-slices">(' + sliceCount + ' slice' + (sliceCount !== 1 ? 's' : '') + ')</span>' +
             '</div>' +
             '<div class="wheel-item-actions">' +
-                '<button onclick="adjustCost(' + index + ', 1)" title="More likely (halve cost)">&#9650;</button>' +
-                '<button onclick="adjustCost(' + index + ', -1)" title="Less likely (double cost)">&#9660;</button>' +
-                '<button class="wheel-item-remove" onclick="removeWheelItem(' + index + ')" title="Remove">&times;</button>' +
+                '<button class="wheel-adj-up" title="More likely (halve cost)">&#9650;</button>' +
+                '<button class="wheel-adj-down" title="Less likely (double cost)">&#9660;</button>' +
+                '<button class="wheel-item-remove" title="Remove">&times;</button>' +
             '</div>';
+        li.querySelector('.wheel-adj-up').addEventListener('click', () => adjustCost(index, 1));
+        li.querySelector('.wheel-adj-down').addEventListener('click', () => adjustCost(index, -1));
+        li.querySelector('.wheel-item-remove').addEventListener('click', () => removeWheelItem(index));
         list.appendChild(li);
     });
 
@@ -1813,9 +1864,9 @@ function saveWheelConfig() {
     const items = getWheelItems();
     if (items.length === 0) return;
 
-    const configs = JSON.parse(localStorage.getItem('wheelConfigs')) || {};
+    const configs = safeParse(localStorage.getItem('wheelConfigs'), {});
     configs[name] = { items, spinCost: getSpinCost() };
-    localStorage.setItem('wheelConfigs', JSON.stringify(configs));
+    safeSetItem('wheelConfigs', JSON.stringify(configs));
     nameInput.value = '';
     updateWheelConfigDropdown();
 }
@@ -1824,11 +1875,11 @@ function loadWheelConfig() {
     const select = document.getElementById('wheel-config-select');
     const name = select.value;
     if (!name) return;
-    const configs = JSON.parse(localStorage.getItem('wheelConfigs')) || {};
+    const configs = safeParse(localStorage.getItem('wheelConfigs'), {});
     if (configs[name]) {
         saveWheelItems(configs[name].items);
         if (configs[name].spinCost) {
-            localStorage.setItem('wheelSpinCost', configs[name].spinCost);
+            safeSetItem('wheelSpinCost', configs[name].spinCost);
             document.getElementById('spin-cost').value = configs[name].spinCost;
         }
         renderWheelItems();
@@ -1840,9 +1891,9 @@ function deleteWheelConfig() {
     const select = document.getElementById('wheel-config-select');
     const name = select.value;
     if (!name) return;
-    const configs = JSON.parse(localStorage.getItem('wheelConfigs')) || {};
+    const configs = safeParse(localStorage.getItem('wheelConfigs'), {});
     delete configs[name];
-    localStorage.setItem('wheelConfigs', JSON.stringify(configs));
+    safeSetItem('wheelConfigs', JSON.stringify(configs));
     updateWheelConfigDropdown();
 }
 
@@ -1850,7 +1901,7 @@ function updateWheelConfigDropdown() {
     const select = document.getElementById('wheel-config-select');
     if (!select) return;
     select.innerHTML = '<option value="" disabled selected>Load saved wheel...</option>';
-    const configs = JSON.parse(localStorage.getItem('wheelConfigs')) || {};
+    const configs = safeParse(localStorage.getItem('wheelConfigs'), {});
     Object.keys(configs).forEach(name => {
         const opt = document.createElement('option');
         opt.value = name;
@@ -1888,9 +1939,8 @@ function renderSettingsList(listId, items, removeFunc) {
     items.forEach((item, idx) => {
         const li = document.createElement('li');
         li.className = 'settings-list-item';
-        li.innerHTML =
-            '<span>' + escapeHtml(item) + '</span>' +
-            '<button onclick="' + removeFunc + '(' + idx + ')">&times;</button>';
+        li.innerHTML = '<span>' + escapeHtml(item) + '</span><button>&times;</button>';
+        li.querySelector('button').addEventListener('click', () => window[removeFunc](idx));
         list.appendChild(li);
     });
 }
@@ -1958,7 +2008,7 @@ function exportData() {
         focusSettings: getFocusSettings(),
         focusLog: getFocusLog(),
         wheelItems: getWheelItems(),
-        wheelConfigs: JSON.parse(localStorage.getItem('wheelConfigs')) || {},
+        wheelConfigs: safeParse(localStorage.getItem('wheelConfigs'), {}),
         wheelSpinCost: getSpinCost()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1977,16 +2027,52 @@ function importData(event) {
     reader.onload = function(e) {
         try {
             const data = JSON.parse(e.target.result);
+            if (typeof data !== 'object' || data === null) {
+                alert('Invalid backup file: not a valid data object.');
+                return;
+            }
+            if (data.cards !== undefined) {
+                if (!Array.isArray(data.cards)) {
+                    alert('Invalid backup file: cards must be an array.');
+                    return;
+                }
+                for (const card of data.cards) {
+                    if (!card.id || typeof card.id !== 'string') {
+                        alert('Invalid backup file: each card must have a string id.');
+                        return;
+                    }
+                    if (!card.title || typeof card.title !== 'string') {
+                        alert('Invalid backup file: each card must have a string title.');
+                        return;
+                    }
+                }
+            }
+            if (data.appSettings !== undefined && (typeof data.appSettings !== 'object' || Array.isArray(data.appSettings))) {
+                alert('Invalid backup file: appSettings must be an object.');
+                return;
+            }
+            if (data.focusSettings !== undefined && (typeof data.focusSettings !== 'object' || Array.isArray(data.focusSettings))) {
+                alert('Invalid backup file: focusSettings must be an object.');
+                return;
+            }
+            if (data.focusLog !== undefined && !Array.isArray(data.focusLog)) {
+                alert('Invalid backup file: focusLog must be an array.');
+                return;
+            }
+            if (data.wheelItems !== undefined && !Array.isArray(data.wheelItems)) {
+                alert('Invalid backup file: wheelItems must be an array.');
+                return;
+            }
             if (data.cards) saveCards(data.cards);
             if (data.appSettings) saveSettings(data.appSettings);
             if (data.focusSettings) saveFocusSettingsData(data.focusSettings);
             if (data.focusLog) saveFocusLog(data.focusLog);
             if (data.wheelItems) saveWheelItems(data.wheelItems);
-            if (data.wheelConfigs) localStorage.setItem('wheelConfigs', JSON.stringify(data.wheelConfigs));
-            if (data.wheelSpinCost) localStorage.setItem('wheelSpinCost', data.wheelSpinCost);
+            if (data.wheelConfigs) safeSetItem('wheelConfigs', JSON.stringify(data.wheelConfigs));
+            if (data.wheelSpinCost) safeSetItem('wheelSpinCost', data.wheelSpinCost);
             location.reload();
         } catch (err) {
-            alert('Invalid backup file.');
+            alert('Invalid backup file: ' + err.message);
         }
     };
     reader.readAsText(file);
